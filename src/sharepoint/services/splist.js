@@ -1,24 +1,22 @@
-/*
-    SPList - factory
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPList
+ *
+ * @description
+ * Represents a SPList object that you could use to access to all SharePoint list properties and data.
+ *
+ * You can create new SPList objects or use a {@link ngSharePoint.SPWeb SPWeb} object to get SPList object instances.
+ *
+ * *At this moment, not all SharePoint API methods for list objects are implementeds in ngSharePoint*
+ *
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//  SPList
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPList', 
 
-    ['$q', 'SPCache', 'SPFolder', 'SPListItem', 'SPContentType', 
+    ['$q', 'SPCache', 'SPFolder', 'SPListItem', 'SPContentType', 'SPObjectProvider', 
 
-    function SPList_Factory($q, SPCache, SPFolder, SPListItem, SPContentType) {
+    function SPList_Factory($q, SPCache, SPFolder, SPListItem, SPContentType, SPObjectProvider) {
 
         'use strict';
 
@@ -29,6 +27,30 @@ angular.module('ngSharePoint').factory('SPList',
         // @web: SPWeb instance that contains the list in SharePoint.
         // @listName: Name or Guid of the list you want to instantiate.
         //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPList
+         * 
+         * @description
+         * Instantiates a new SPList object that points to a specific SharePoint list. With this
+         * list instance you could access to their properties and get list items.
+         * 
+         * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object where the list is located
+         * @param {string} listId|listName List id or list name.
+
+         * You can specify "UserInfoList" to refer the system list with all site users.
+         * @param {object} listProperties Properties to initialize the object
+         * 
+         * @example
+         * <pre>
+         * new SPList(web, 'Shared documents').then(function(docs) {
+         *   // ... do something with the docs object
+         * })
+         * </pre>
+         *
+         */
         var SPListObj = function(web, listName, listProperties) {
 
             if (web === void 0) {
@@ -123,7 +145,6 @@ angular.module('ngSharePoint').factory('SPList',
 
             var self = this;
             var def = $q.defer();
-            var executor = new SP.RequestExecutor(self.web.url);
             var defaultExpandProperties = 'Views';
             // NOTA: Se ha eliminado la expansión automática del objeto 'Forms' debido a 
             // que si la lista es la 'SiteUserInfoList' se genera un error porque no 
@@ -137,6 +158,40 @@ angular.module('ngSharePoint').factory('SPList',
                     $expand: defaultExpandProperties
                 };
             }
+
+
+            // Check if the requested properties (query.$expand) are already defined to avoid to make an unnecessary new request to the server.
+            if (this.Created !== undefined) {
+
+                var infoIsOk = true;
+
+                // The list properties are already here?
+                if (query.$expand !== undefined) {
+                    /*
+                    if (query.$expand.toLowerCase().indexOf('fields') >= 0 && this.Fields === undefined) infoIsOk = false;
+                    if (query.$expand.toLowerCase().indexOf('contenttypes') >= 0 && this.ContentTypes === undefined) infoIsOk = false;
+                    */
+                    angular.forEach(query.$expand.split(/, */g), function(expandKey) {
+
+                        infoIsOk = infoIsOk && self[expandKey] !== void 0;
+
+                    });
+
+                }
+
+
+                if (infoIsOk) {
+
+                    def.resolve(this);
+                    return def.promise;
+
+                }
+
+            }
+
+
+            // Make the query to the server.
+            var executor = new SP.RequestExecutor(self.web.url);
 
             executor.executeAsync({
 
@@ -165,6 +220,21 @@ angular.module('ngSharePoint').factory('SPList',
 
                         self.Fields = fields;
                         SPCache.setCacheValue('SPListFieldsCache', self.apiUrl, fields);
+                    }
+
+                    if (self.ContentTypes !== void 0 && self.ContentTypes.results !== void 0) {
+
+                        // process contenttypes --> $expand: 'ContentTypes'
+
+                        var contentTypes = [];
+
+                        angular.forEach(self.ContentTypes.results, function(contentType) {
+
+                            contentTypes.push(new SPContentType(self, contentType.StringId, contentType));
+
+                        });
+
+                        self.ContentTypes = contentTypes;
                     }
 
                     def.resolve(d);
@@ -347,48 +417,55 @@ angular.module('ngSharePoint').factory('SPList',
 
             var self = this;
             var def = $q.defer();
-            var executor = new SP.RequestExecutor(self.web.url);
 
-            // We don't cache the content types due to that the user can 
-            // change its order (the default content type) anytime.
+            if (this.ContentTypes !== void 0) {
 
-            executor.executeAsync({
+                def.resolve(this.ContentTypes);
 
-                url: self.apiUrl + '/ContentTypes',
-                method: 'GET',
-                headers: {
-                    "Accept": "application/json; odata=verbose"
-                },
+            } else {
 
-                success: function(data) {
+                var executor = new SP.RequestExecutor(self.web.url);
 
-                    var d = utils.parseSPResponse(data);
-                    var contentTypes = [];
+                // We don't cache the content types due to that the user can 
+                // change its order (the default content type) anytime.
 
-                    angular.forEach(d, function(contentType) {
+                executor.executeAsync({
 
-                        contentTypes.push(new SPContentType(self, contentType.StringId, contentType));
+                    url: self.apiUrl + '/ContentTypes',
+                    method: 'GET',
+                    headers: {
+                        "Accept": "application/json; odata=verbose"
+                    },
 
-                    });
+                    success: function(data) {
 
-                    self.ContentTypes = contentTypes;
+                        var d = utils.parseSPResponse(data);
+                        var contentTypes = [];
 
-                    def.resolve(contentTypes);
+                        angular.forEach(d, function(contentType) {
 
-                },
+                            contentTypes.push(new SPContentType(self, contentType.StringId, contentType));
 
-                error: function(data, errorCode, errorMessage) {
+                        });
 
-                    var err = utils.parseError({
-                        data: data,
-                        errorCode: errorCode,
-                        errorMessage: errorMessage
-                    });
+                        self.ContentTypes = contentTypes;
 
-                    def.reject(err);
-                }
-            });
+                        def.resolve(contentTypes);
 
+                    },
+
+                    error: function(data, errorCode, errorMessage) {
+
+                        var err = utils.parseError({
+                            data: data,
+                            errorCode: errorCode,
+                            errorMessage: errorMessage
+                        });
+
+                        def.reject(err);
+                    }
+                });
+            }
 
             return def.promise;
 
@@ -402,7 +479,8 @@ angular.module('ngSharePoint').factory('SPList',
         //
         // Gets a list content type by its ID.
         //
-        // @contentTypeId: The ID of the content type to retrieve.
+        // @contentTypeId: The ID of the content type to retrieve if this parameter is
+        // undefined, the function returns the default content type.
         // @returns: Promise with the result of the REST query.
         //
         SPListObj.prototype.getContentType = function(contentTypeId) {
@@ -578,7 +656,7 @@ angular.module('ngSharePoint').factory('SPList',
             var self = this;
             var def = $q.defer();
             var executor = new SP.RequestExecutor(self.web.url);
-            var defaultExpandProperties = 'ContentType, File, File/ParentFolder, Folder, Folder/ParentFolder';
+            var defaultExpandProperties = 'ContentType,File,File/ParentFolder,Folder,Folder/ParentFolder';
             var urlParams = '';
 
             if (this.$skiptoken !== void 0 && !resetPagination) {
@@ -611,6 +689,18 @@ angular.module('ngSharePoint').factory('SPList',
                     var items = [];
 
                     angular.forEach(d, function(item) {
+
+                        if (item.File !== undefined && item.File.__deferred === undefined) {
+                            var newFile = SPObjectProvider.getSPFile(self.web, item.File.ServerRelativeUrl, item.File);
+                            newFile.List = self;
+                            item.File = newFile;
+                        }
+                        if (item.Folder !== undefined && item.Folder.__deferred === undefined) {
+                            var newFolder = SPObjectProvider.getSPFolder(self.web, item.Folder.ServerRelativeUrl, item.Folder);
+                            newFolder.List = self;
+                            item.Folder = newFolder;
+                        }
+
                         var spListItem = new SPListItem(self, item);
                         items.push(spListItem);
                     });
@@ -663,7 +753,7 @@ angular.module('ngSharePoint').factory('SPList',
             var self = this;
             var def = $q.defer();
             var executor = new SP.RequestExecutor(self.web.url);
-            var defaultExpandProperties = 'ContentType, File, File/ParentFolder, Folder, Folder/ParentFolder';
+            var defaultExpandProperties = 'ContentType,File,File/ParentFolder,Folder,Folder/ParentFolder';
             var query = {
                 $expand: defaultExpandProperties + (expandProperties ? ', ' + expandProperties : '')
             };
@@ -679,6 +769,18 @@ angular.module('ngSharePoint').factory('SPList',
                 success: function(data) {
 
                     var d = utils.parseSPResponse(data);
+
+                    if (d.File !== undefined && d.File.__deferred === undefined) {
+                        var newFile = SPObjectProvider.getSPFile(self.web, d.File.ServerRelativeUrl, d.File);
+                        newFile.List = self;
+                        d.File = newFile;
+                    }
+                    if (d.Folder !== undefined && d.Folder.__deferred === undefined) {
+                        var newFolder = SPObjectProvider.getSPFolder(self.web, d.Folder.ServerRelativeUrl, d.Folder);
+                        newFolder.List = self;
+                        d.Folder = newFolder;
+                    }
+
                     var spListItem = new SPListItem(self, d);
                     def.resolve(spListItem);
                 }, 
@@ -749,6 +851,64 @@ angular.module('ngSharePoint').factory('SPList',
 
         }; // getItemById
 
+
+
+        // ****************************************************************************
+        // getDefaultViewUrl
+        //
+        // Gets the default edit form url
+        // @returns: Promise with the result of the REST query.
+        //
+        SPListObj.prototype.getDefaultViewUrl = function() {
+
+            var self = this;
+            var def = $q.defer();
+
+            if (this.defaultViewUrl !== void 0) {
+
+                def.resolve(this.defaultViewUrl);
+                return def.promise;
+            }
+
+            var listGuid = self.Id;
+
+            self.context = new SP.ClientContext(self.web.url);
+            var web = self.context.get_web();
+
+            if (self.Id !== void 0) {
+                self._list = web.get_lists().getById(self.Id);
+            } else {
+                self._list = web.get_lists().getByTitle(self.listName);
+            }
+
+            self.context.load(self._list, 'DefaultViewUrl');
+
+            self.context.executeQueryAsync(function() {
+
+
+                self.defaultViewUrl = self._list.get_defaultViewUrl();
+                def.resolve(self.defaultViewUrl);
+
+
+            }, function(sender, args) {
+
+                var err = {
+                    Code: args.get_errorCode(),
+                    Details: args.get_errorDetails(),
+                    TypeName: args.get_errorTypeName(),
+                    Value: args.get_errorValue(),
+                    message: args.get_message(),
+                    request: args.get_request(),
+                    stackTrace: args.get_stackTrace()
+                };
+
+                def.reject(err);
+
+            });
+
+            return def.promise;
+
+        };   // getDefaultViewUrl
 
 
         // ****************************************************************************

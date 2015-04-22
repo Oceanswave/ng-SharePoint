@@ -1,10 +1,16 @@
-/*
- *  Module: ngSharePointFormPage
- *  Directive: spformpage
- *
- *  Adds 'spform' directive and bootstrap the angular application with the correct SharePoint List/Item page context.
- *
+
+/**
+ * @ngdoc overview
+ * @name ngSharePointFormPage
+
+ * @description Adds 'spform' directive and bootstrap the angular application with the correct SharePoint List/Item page context.
+ 
+ * @author Pau Codina [<pau.codina@kaldeera.com>]
+ * @author Pedro Castro [<pedro.cm@gmail.com>]
+ * @license Licensed under the MIT License
+ * @copyright Copyright (c) 2014
  */
+
 
 angular.module('ngSharePointFormPage', ['ngSharePoint', 'oc.lazyLoad']);
 
@@ -115,7 +121,11 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                         $scope.list = list;
 
-                        list.getProperties().then(function(props) {
+                        list.getProperties({
+
+                            $expand: 'Fields,ContentTypes,ContentTypes/Fields'
+
+                        }).then(function(props) {
 
                             getItem(itemId).then(function(item) {
 
@@ -156,6 +166,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                                     }
 
+
                                     // Try to get the template
                                     getTemplateUrl().then(function(templateUrl) {
 
@@ -164,7 +175,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                                         $scope.extendedSchema = formDefinition.extendedSchema || {};
                                         $scope.controller = formDefinition.controller || {};
 
-                                        spformHTML = '<div data-spform="true" mode="mode" item="item" extended-schema="extendedSchema" extended-controller="controller" template-url="' + templateUrl + '"></div>';
+                                        spformHTML = '<div data-spform="true" name="spform" mode="mode" item="item" extended-schema="extendedSchema" extended-controller="controller" template-url="' + templateUrl + '"></div>';
 
                                         var newElement = $compile(spformHTML)($scope);
                                         $element.replaceWith(newElement);
@@ -218,7 +229,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                     } else {
 
-                        $scope.list.getItemById(itemId).then(function(item) {
+                        $scope.list.getItemById(itemId, 'FieldValuesAsHtml').then(function(item) {
 
                             deferred.resolve(item);
 
@@ -240,9 +251,18 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                 function getTemplateUrl() {
 
                     var deferred = $q.defer();
-                    //var mode = SPClientTemplates.Utility.ControlModeToString(ctx.ControlMode);
+
+                    var templateUrl;
                     var mode = (controlMode == 'new' ? controlMode : $scope.mode);
-                    var templateUrl = $scope.web.url.rtrim('/') + '/ngSharePointFormTemplates/' + $scope.list.Title + '-' + ctx.ListData.Items[0].ContentType + '-' + mode + 'Form.html';
+
+                    if (formDefinition.templates !== void 0) {
+                        templateUrl = formDefinition.templates[mode];
+                    }
+
+                    if (templateUrl === void 0) {
+                        templateUrl = $scope.web.url.rtrim('/') + '/ngSharePointFormTemplates/' + $scope.list.Title + '-' + ctx.ListData.Items[0].ContentType + '-' + mode + 'Form.html';
+                    }
+
 
                     // Check if the 'templateUrl' is valid, i.e. the template exists.
                     $http.get(templateUrl, { cache: $templateCache }).success(function(html) {
@@ -273,8 +293,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                     // TODO: Hacer un $http para comprobar que exista el script de definición.
                     //       Si no existe, generar error? utilizar uno vacío? ... ???
-
-
+                    
                     SP.SOD.registerSod('formDefinition', $scope.web.url.rtrim('/') + '/ngSharePointFormTemplates/' + $scope.list.Title + '-' + ctx.ListData.Items[0].ContentType + '-definition.js');
 
                     SP.SOD.executeFunc('formDefinition', null, function() {
@@ -316,6 +335,9 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                                 deferred.resolve(formDefinition);
 
+                            }, function(err) {
+
+                                deferred.reject(err);
                             });
 
                         } else {

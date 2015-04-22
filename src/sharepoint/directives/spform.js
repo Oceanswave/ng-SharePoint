@@ -64,8 +64,25 @@ angular.module('ngSharePoint').directive('spform',
                     return $scope.item.isNew();
                 };
 
+                this.registerField = function(fieldControl) {
+
+                    this.formFields = this.formFields || [];
+                    this.formFields.push(fieldControl);
+                };
+
+                this.unregisterField = function(fieldControl) {
+
+                    for(var r=this.formFields.length -1; r >= 0; r--) {
+
+                        if (this.formFields[r].name === fieldControl.name) {
+                            this.formFields.splice(r, 1);
+                        }
+                    }
+                };
 
                 this.initField = function(fieldName) {
+
+                    var def = $q.defer();
 
                     if (this.isNew()) {
 
@@ -126,8 +143,16 @@ angular.module('ngSharePoint').directive('spform',
                                     break;
                             }
 
+                            def.resolve();
+
                         });
+
+                    } else {
+
+                        def.resolve();
                     }
+
+                    return def.promise;
                 };
 
 
@@ -154,13 +179,13 @@ angular.module('ngSharePoint').directive('spform',
                 };
 
 
-                this.fieldValueChanged = function(fieldName, newValue, oldValue) {
+                this.fieldValueChanged = function(fieldName, newValue, oldValue, params) {
 
                     // Propagate to child Elements/Fields
-                    $scope.$broadcast(fieldName + '_changed', newValue, oldValue);
+                    $scope.$broadcast(fieldName + '_changed', newValue, oldValue, params);
 
                     // Propagate to parent Elements/Controllers
-                    $scope.$emit(fieldName + '_changed', newValue, oldValue);
+                    $scope.$emit(fieldName + '_changed', newValue, oldValue, params);
                     
                 };
 
@@ -309,133 +334,155 @@ angular.module('ngSharePoint').directive('spform',
                     // Change the form to a 'dirty' state.
                     $scope.ngFormCtrl.$setDirty();
 
+
+                    // Check the form validity
+                    $scope.$broadcast('validate');
+
+                    // Make a call to all form fields validation function
+                    var validationPromises = [];
+
+                    angular.forEach(this.formFields, function(formField) {
+
+                        if (formField.validate !== undefined) {
+
+                            var promise = $q.when(formField.validate());
+                            validationPromises.push(promise);
+                        }
+                    });
+
                     // Check the form validity broadcasting a 'validate' event to all the fields.
-                    if (!$scope.ngFormCtrl.$valid) {
+                    $q.all(validationPromises).then(function() {
 
-                        $q.when($scope.$broadcast('validate')).then(function(result) {
+                        // Set the focus in the first invalid field.
+                        var fieldFocused = self.setFieldFocus();
 
-                            // Set the focus in the first invalid field.
-                            var fieldFocused = self.setFieldFocus();
+                        $scope.$broadcast('postValidate', fieldFocused);
+                        $scope.$emit('postValidate', fieldFocused);
 
-                            $scope.$broadcast('postValidate', fieldFocused);
-                            $scope.$emit('postValidate', fieldFocused);
+
+                        // Check if the form is valid after validate all the fields
+                        if (!$scope.ngFormCtrl.$valid) {
+
+                            // Check if 'force' option is enabled.
+                            // If so, continues with the saving process even if there are invalid fields.
+                            // Otherwise, cancel the saving process.
+                            //
+                            // NOTE: Must check if there are fields that will generate an error when saving the item.
+                            //       e.g. If the user sets an string in a numeric field and so on.
+                            //
+                            if (options.force !== true) {
+
+                                def.reject();
+                                return def.promise;
+
+                            }
+
+                        }
+
+
+                        // Start the 'save' process...
+                        $scope.formStatus = this.status.PROCESSING;
+
+
+                        // Shows the 'Working on it...' dialog.
+                        if (options.silent !== true) {
+                            dlg = SP.UI.ModalDialog.showWaitScreenWithNoClose(SP.Res.dialogLoading15);
+                        }
+
+
+                        // Removes all the custom 'virtual' fields.
+                        angular.forEach($scope.schema, function(field, key) {
+
+                            if (field.isVirtualField) {
+
+                                delete $scope.item[key];
+
+                            }
 
                         });
 
-                        // Check if 'force' option is enabled.
-                        // If so, continues with the saving process even if there are invalid fields.
-                        // Otherwise, cancel the saving process.
-                        //
-                        // NOTE: Must check if there are fields that will generate an error when saving the item.
-                        //       e.g. If the user sets an string in a numeric field and so on.
-                        //
-                        if (options.force !== true) {
 
-                            def.reject();
-                            return def.promise;
+                        // Invoke 'onPreSave' function
+                        $q.when(SPUtils.callFunctionWithParams($scope.onPreSave, $scope)).then(function(result) {
 
-                        }
-                    }
+                            // If the 'onPreSave' function returns FALSE, cancels the save operation.
+                            if (result !== false) {
 
-                    $scope.formStatus = this.status.PROCESSING;
+                                $scope.item.save().then(function(data) {
 
-                    // Shows the 'Working on it...' dialog.
-                    if (options.silent !== true) {
-                        dlg = SP.UI.ModalDialog.showWaitScreenWithNoClose(SP.Res.dialogLoading15);
-                    }
+                                    $scope.formStatus = this.status.IDLE;
 
+                                    // Invoke 'onPostSave' function.
+                                    $q.when(SPUtils.callFunctionWithParams($scope.onPostSave, $scope)).then(function(result) {
 
-                    // Removes all the custom 'virtual' fields.
-                    angular.forEach($scope.schema, function(field, key) {
+                                        if (result !== false) {
 
-                        if (field.isVirtualField) {
+                                            // Default 'post-save' action.
+                                            //self.closeForm(options.redirectUrl);
+                                            def.resolve(result);
 
-                            delete $scope.item[key];
+                                        } else {
 
-                        }
+                                            def.reject();
 
-                    });
+                                        }
 
+                                        // Close the 'Working on it...' dialog.
+                                        closeDialog();
+                                        
+                                    }, function() {
 
-                    // Invoke 'onPreSave' function
-                    $q.when(SPUtils.callFunctionWithParams($scope.onPreSave, $scope)).then(function(result) {
+                                        // At this point, the 'OnPostSave' promise has been rejected 
+                                        // due to an exception or manually by the user.
 
-                        // If the 'onPreSave' function returns FALSE, cancels the save operation.
-                        if (result !== false) {
-
-                            $scope.item.save().then(function(data) {
-
-                                $scope.formStatus = this.status.IDLE;
-
-                                // Invoke 'onPostSave' function.
-                                $q.when(SPUtils.callFunctionWithParams($scope.onPostSave, $scope)).then(function(result) {
-
-                                    if (result !== false) {
-
-                                        // Default 'post-save' action.
-                                        //self.closeForm(options.redirectUrl);
-                                        def.resolve(result);
-
-                                    } else {
-
+                                        closeDialog();
                                         def.reject();
+                                        
+                                    });
 
-                                    }
+                                }, function(err) {
 
-                                    // Close the 'Working on it...' dialog.
+                                    // At this point, the 'item.save' promise has been rejected 
+                                    // due to an exception.
+
+                                    console.error(err);
                                     closeDialog();
-                                    
-                                }, function() {
 
-                                    // At this point, the 'OnPostSave' promise has been rejected 
-                                    // due to an exception or manually by the user.
+                                    // Shows a popup with the error details.
+                                    var dom = document.createElement('div');
+                                    dom.innerHTML = '<div style="color:brown">' + err.code + '<br/><strong>' + err.message + '</strong></div>';
 
-                                    closeDialog();
-                                    def.reject();
-                                    
+                                    SP.UI.ModalDialog.showModalDialog({
+                                        title: SP.Res.dlgTitleError,
+                                        html: dom,
+                                        showClose: true,
+                                        autoSize: true,
+                                        dialogReturnValueCallback: function() {
+                                            def.reject();
+                                        }
+                                    });
+
                                 });
 
-                            }, function(err) {
+                            } else {
 
-                                // At this point, the 'item.save' promise has been rejected 
-                                // due to an exception.
+                                // At this point, the 'OnPreSave' promise has been canceled 
+                                // by the user (By the 'onPreSave' method implemented by the user).
 
-                                console.error(err);
                                 closeDialog();
+                                def.reject();
 
-                                // Shows a popup with the error details.
-                                var dom = document.createElement('div');
-                                dom.innerHTML = '<div style="color:brown">' + err.code + '<br/><strong>' + err.message + '</strong></div>';
+                            }
+                            
+                        }, function() {
 
-                                SP.UI.ModalDialog.showModalDialog({
-                                    title: SP.Res.dlgTitleError,
-                                    html: dom,
-                                    showClose: true,
-                                    autoSize: true,
-                                    dialogReturnValueCallback: function() {
-                                        def.reject();
-                                    }
-                                });
-
-                            });
-
-                        } else {
-
-                            // At this point, the 'OnPreSave' promise has been canceled 
-                            // by the user (By the 'onPreSave' method implemented by the user).
+                            // At this point, the 'OnPreSave' promise has been rejected 
+                            // due to an exception or manually by the user.
 
                             closeDialog();
                             def.reject();
 
-                        }
-                        
-                    }, function() {
-
-                        // At this point, the 'OnPreSave' promise has been rejected 
-                        // due to an exception or manually by the user.
-
-                        closeDialog();
-                        def.reject();
+                        });
 
                     });
 
@@ -445,7 +492,7 @@ angular.module('ngSharePoint').directive('spform',
                 };
 
 
-                this.cancel = function(redirectUrl) {
+                this.cancel = function() {
 
                     var self = this;
                     var def = $q.defer();
@@ -465,7 +512,8 @@ angular.module('ngSharePoint').directive('spform',
 
                             // Restore the item to its 'original' value.
                             //$scope.item = angular.copy($scope.originalItem);
-                            $scope.item = new SPListItem($scope.originalItem.list, $scope.originalItem);
+                            //$scope.item = new SPListItem($scope.originalItem.list, $scope.originalItem);
+                            $scope.item = new SPListItem($scope.originalItem.list, angular.copy($scope.originalItem));
 
                             def.resolve(result);
 
@@ -561,7 +609,8 @@ angular.module('ngSharePoint').directive('spform',
                             //$scope.originalItem = angular.copy(newValue);
 
                             // Instead, create a 'new SPListItem(@list, @data)' that use the 'angular.extend' method.
-                            $scope.originalItem = new SPListItem($scope.item.list, $scope.item);
+                            // $scope.originalItem = new SPListItem($scope.item.list, $scope.item);
+                            $scope.originalItem = new SPListItem($scope.item.list, angular.copy($scope.item));
 
                             loadItemInfrastructure().then(function() {
                                 loadItemTemplate();
@@ -607,7 +656,11 @@ angular.module('ngSharePoint').directive('spform',
                             // Gets the schema (fields) of the list.
                             // Really, gets the fields of the list content type specified in the 
                             // item or, if not specified, the default list content type.
-                            $scope.item.list.getProperties().then(function() {
+                            $scope.item.list.getProperties({
+                            
+                                $expand: 'Fields,ContentTypes,ContentTypes/Fields'
+
+                            }).then(function() {
 
                                 $scope.item.list.getFields().then(function(listFields) {
 
@@ -624,11 +677,6 @@ angular.module('ngSharePoint').directive('spform',
                                                 fields.Attachments = listFields.Attachments;
 
                                             }
-
-                                            // Set the originalTypeAsString
-                                            angular.forEach(fields, function(field) {
-                                                field.originalTypeAsString = field.TypeAsString;
-                                            });
 
                                             // Sets schema
                                             $scope.schema = fields;
@@ -662,7 +710,12 @@ angular.module('ngSharePoint').directive('spform',
                                             */
 
                                             // Extend original schema with extended properties
-                                            $scope.schema = utils.deepExtend({}, $scope.schema, $scope.extendedSchema.Fields);
+                                            $scope.schema = utils.deepExtend($scope.item.list.Fields, $scope.schema, $scope.extendedSchema.Fields);
+
+                                            // Set the originalTypeAsString
+                                            angular.forEach($scope.schema, function(field) {
+                                                field.originalTypeAsString = field.TypeAsString;
+                                            });
 
                                             def.resolve();
 
@@ -832,6 +885,40 @@ angular.module('ngSharePoint').directive('spform',
                             deferred = deferred || $q.defer();
                             terminalRuleAdded = terminalRuleAdded || false;
 
+                            var forceRuleParam = utils.getQueryStringParamByName('rule');
+                            var forceRuleElement = '';
+
+                            if (forceRuleParam !== undefined) {
+
+                                forceRuleParam = parseInt(forceRuleParam);
+
+                                for (var r=0, count=0; r < sourceElements.length; r++) {
+
+                                    forceRuleElement = sourceElements[r];
+
+                                    if (forceRuleElement.tagName !== void 0 && forceRuleElement.tagName.toLowerCase() === 'spform-rule') {
+
+                                        count++;
+                                        if (count === forceRuleParam) break;
+
+                                    }
+                                }
+
+                                if (forceRuleElement !== '') {
+                                    
+                                    return SPExpressionResolver.resolve(forceRuleElement.outerHTML, $scope).then(function(elemResolved) {
+
+                                        targetElement.append(angular.element(elemResolved)[0]);
+
+                                        deferred.resolve();
+                                        return deferred.promise;
+
+                                    });
+
+                                }
+
+                            }
+
                             // Gets the element to parse.
                             var elem = sourceElements[elementIndex++];
 
@@ -866,6 +953,10 @@ angular.module('ngSharePoint').directive('spform',
                                         terminalExpression = elem.getAttribute('terminal');
                                     }
 
+                                    var ruleName;
+                                    if (elem.hasAttribute('name')) {
+                                        ruleName = elem.getAttribute('name');
+                                    }
 
                                     // Resolve 'test' attribute expressions.
                                     SPExpressionResolver.resolve(testExpression, $scope).then(function(testResolved) {
@@ -902,7 +993,8 @@ angular.module('ngSharePoint').directive('spform',
                                                         testResolved: testResolved, 
                                                         terminal: terminalExpression, 
                                                         terminalResolved: terminalResolved,
-                                                        solved: true
+                                                        solved: true,
+                                                        name: ruleName
                                                     });
 
 
@@ -933,7 +1025,8 @@ angular.module('ngSharePoint').directive('spform',
                                                 testResolved: testResolved,
                                                 terminal: terminalExpression, 
                                                 terminalResolved: 'n/a',
-                                                solved: false
+                                                solved: false,
+                                                name: ruleName
                                             });
 
 

@@ -26,8 +26,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 			require: ['^spform', 'ngModel'],
 			replace: true,
 			scope: {
-				mode: '@',
-				value: '=ngModel'
+				mode: '@'
 			},
 			templateUrl: 'templates/form-templates/spfield-control-loading.html',
 
@@ -47,38 +46,38 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 						$scope.candidateAltText = STSHtmlEncode(StBuildParam(Strings.STS.L_LookupMultiFieldCandidateAltText, $scope.schema.Title));
 						$scope.resultAltText = STSHtmlEncode(StBuildParam(Strings.STS.L_LookupMultiFieldResultAltText, $scope.schema.Title));
 
+						
+					},
+
+
+					renderFn: function() {
+
+						$scope.value = $scope.modelCtrl.$viewValue;
+
 						// Adjust the model if no value is provided
 						if ($scope.value === null || $scope.value === void 0) {
 							$scope.value = { results: [] };
 						}
-						
-					},
-					
-					parserFn: function(viewValue) {
-
-						var hasValue = $scope.value && $scope.value.results.length > 0;
-						directive.setValidity('required', !$scope.schema.Required || hasValue);
-						
-						return viewValue;
-					},
-
-					watchModeFn: function(newValue) {
-
-						refreshData();
-					},
-
-					watchValueFn: function(newValue, oldValue) {
-
-						if (newValue === oldValue) return;
+						//if (newValue === oldValue) return;
 
 						$scope.selectedLookupItems = void 0;
-						refreshData();						
+						refreshData();
+
+
+                        // Replace standar required validator
+                        $scope.modelCtrl.$validators.required = function(modelValue, viewValue) {
+
+                            if ($scope.currentMode != 'edit') return true;
+                            if (!$scope.schema.Required) return true;
+                            if (viewValue && viewValue.results.length > 0) return true;
+
+                            return false;
+                        };
 					}
 				};
 
 
 				SPFieldDirective.baseLinkFn.apply(directive, arguments);
-
 
 
 				// ****************************************************************************
@@ -124,6 +123,30 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 				// Refresh the lookup data and render the field.
 				//
 				function refreshData() {
+
+					// If we are in display mode, there are not a extended template (that probably shows
+					// additional information), and there are the FieldValuesAsHtml ... we can show
+					// directly this value improving performance.
+					var extendedTemplateForDisplay = false;
+					if (angular.isDefined($scope.schema.extendedTemplate)) {
+						if (angular.isDefined($scope.schema.extendedTemplate.display)) {
+							extendedTemplateForDisplay = true;
+						} else {
+							if (!angular.isDefined($scope.schema.extendedTemplate.edit)) {
+								extendedTemplateForDisplay = true;
+							}
+						}
+					}
+
+					if ($scope.currentMode === 'display' && !extendedTemplateForDisplay) {
+
+                        var fieldName = $scope.name.replace(/_/g, '_x005f_');
+						if ($scope.item.FieldValuesAsHtml !== void 0 && $scope.item.FieldValuesAsHtml[fieldName] !== void 0) {
+
+							directive.setElementHTML($scope.item.FieldValuesAsHtml[fieldName]);
+							return;
+						}
+					}
 
 					// Adjust the model if no value is provided
 					if ($scope.value === null || $scope.value === void 0) {
@@ -314,14 +337,48 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 				function getLookupDataForEdit() {
 
 					var def = $q.defer();
-					var $query = void 0;
+					var $query = {
+						$orderby: $scope.schema.LookupField,
+						$top: 999999
+					};
+
+					if ($scope.schema.query !== undefined) {
+						angular.extend($query, $scope.schema.query);
+					}
 
 					if ($scope.dependency !== void 0) {
+
+						if ($query.select !== undefined) {
+							$query.$select += ',';
+						} else {
+							$query.$select = '*,';	
+						}
+						$query.$select += $scope.dependency.fieldName + '/Id';
+
+						if ($query.$expand !== undefined) {
+							$query.$expand += ',';
+						} else {
+							$query.$expand = '';
+						}
+						$query.$expand += $scope.dependency.fieldName + '/Id';
+						
+						if ($query.$filter !== undefined) {
+							$query.$filter += ' and';
+						} else {
+							$query.$filter = '';
+						}
+						$query.$filter += $scope.dependency.fieldName + '/Id eq ' + $scope.dependency.value;
+
+
+						/*
 						$query = {
 							$select: '*, ' + $scope.dependency.fieldName + '/Id',
 							$expand: $scope.dependency.fieldName + '/Id',
 							$filter: $scope.dependency.fieldName + '/Id eq ' + $scope.dependency.value,
+							$orderby: $scope.schema.LookupField,
+							$top: 999999
 						};
+						*/
 					}
 
 					getLookupItems($query).then(function(candidateItems) {
@@ -374,15 +431,13 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 
 				function updateModel() {
 
-					if ($scope.value === null || $scope.value === void 0) {
-						$scope.value = {};
-					}
-
-					$scope.value.results = [];
+					var results = [];
 
 					angular.forEach($scope.resultItems, function(item) {
-						$scope.value.results.push(item.id);
+						results.push(item.id);
 					});
+
+					$scope.value = {results: results };
 				}
 
 

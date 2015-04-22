@@ -77,7 +77,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			this.apiUrl = list.apiUrl + '/GetItemById(' + itemId + ')/file';
 
-		}; // getProperties
+		}; // updateAPIUrlById
 
 
 
@@ -553,7 +553,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			Comment = Comment || '';
 
-			self.getList().then(function() {
+			self.getFileListItem().then(function() {
 
 				var listGuid = self.List.Id;
 				var itemId = self.ListItemAllFields.Id;
@@ -596,64 +596,6 @@ angular.module('ngSharePoint').factory('SPFile',
 
 				});
 			});
-
-/*
-			var url = self.apiUrl + '/CheckIn(comment=\'' + Comment + '\', checkintype=0)';
-
-			var executor = new SP.RequestExecutor(self.web.url);
-
-			$http({
-				url: url,
-				method: 'POST'
-			}).then(function() {
-
-					self.getProperties({
-						$expand: 'CheckedOutByUser'
-					}).then(function() {
-						delete self.CheckedOutByUser;
-						def.resolve();
-					});
-
-			}, function(err) {
-
-					self.getProperties({
-						$expand: 'CheckedOutByUser'
-					}).then(function() {
-						def.reject(err);
-					});
-			});
-
-			executor.executeAsync({
-
-				url: url,
-				method: 'POST',
-
-				success: function() {
-
-					self.getProperties({
-						$expand: 'CheckedOutByUser'
-					}).then(function() {
-						delete self.CheckedOutByUser;
-						def.resolve();
-					});
-				},
-
-				error: function(data, errorCode, errorMessage) {
-
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
-
-					self.getProperties({
-						$expand: 'CheckedOutByUser'
-					}).then(function() {
-						def.reject(err);
-					});
-				}
-			});
-*/
 
 			return def.promise;
 

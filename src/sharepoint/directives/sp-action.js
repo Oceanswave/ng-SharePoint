@@ -37,7 +37,7 @@
             terminal: true,
 
             scope: {
-                spAction: '&',
+                spAction: '@',
                 redirectUrl: '@',
                 enabled: '='
             },
@@ -117,6 +117,10 @@
                     // Default save action
                     case 'save':
 
+                        if (element.html() === '') {
+                            element.append(Strings.STS.L_SaveButtonCaption);
+                        }
+
                         scope.action = save;
                         redirectUrl = redirectUrl || 'default';
 
@@ -132,6 +136,10 @@
                     // Default cancel action
                     case 'cancel':
 
+                        if (element.html() === '') {
+                            element.append(Strings.STS.L_CancelButtonCaption);
+                        }
+
                         scope.action = cancel;
                         redirectUrl = redirectUrl || 'default';
 
@@ -146,6 +154,10 @@
 
                     // Default close action
                     case 'close':
+
+                        if (element.html() === '') {
+                            element.append(Strings.STS.L_CloseButtonCaption);
+                        }
 
                         scope.action = cancel;
                         redirectUrl = redirectUrl || 'default';
@@ -218,7 +230,11 @@
             // Default SAVE form action
             function save() {
 
-                return scope.formCtrl.save(redirectUrl);
+                if (SP.UI.ModalDialog.get_childDialog()) {
+                    scope.dialogResult = SP.UI.DialogResult.OK;
+                }
+
+                return scope.formCtrl.save();
 
             }
 
@@ -227,7 +243,11 @@
             // Default CANCEL form action
             function cancel() {
 
-                return scope.formCtrl.cancel(redirectUrl);
+                if (SP.UI.ModalDialog.get_childDialog()) {
+                    scope.dialogResult = SP.UI.DialogResult.cancel;
+                }
+
+                return scope.formCtrl.cancel();
 
             }
 
@@ -241,111 +261,180 @@
 
                 scope.formCtrl.setFormStatus(scope.status.PROCESSING);
 
-                var safeActionFn = function() {
-                    try {
-                        return scope.action();
-                    } catch(e) {
-                        console.error('>>>> ngSharePoint: sp-action "' + getLabel() + '" rejected automatically due to an unhandled exception.');
-                        return $q.reject(e);
-                    }
-                };
+                var promise;
+
+                switch(scope.spAction.toLowerCase()) {
+
+                    case 'save':
+                    case 'cancel':
+                    case 'close':
+                        // default functions
+                        var safeActionFn = function() {
+                            try {
+                                return scope.action();
+                            } catch(e) {
+                                console.error('>>>> ngSharePoint: sp-action "' + getLabel() + '" rejected automatically due to an unhandled exception.');
+                                return $q.reject(e);
+                            }
+                        };
+
+                        promise = SPUtils.callFunctionWithParams(scope.action, scope);
+                        break;
 
 
 
-                $q.when(safeActionFn())
-
-                    .then(function(result) {
-
-                        if (result !== false) {
-
-                            //var redirectUrl = scope.redirectUrl;
-
-                            if (redirectUrl) {
-
-                                // Checks for pre-defined values in the redirect url.
-                                switch(redirectUrl.toLowerCase()) {
-
-                                    case 'display':
-                                        redirectUrl = window.location.href.toLowerCase().replace(/new|edit/, 'display');
-                                        // NOTA: No sirve porque la url del formulario por defecto para 'Display' 
-                                        //       puede ser '.../lo-que-sea.aspx'.
-                                        // TODO: Get the right default 'DispForm' url.
-                                        //       Use spList.getProperties({$expand: 'Forms'}) to get the list forms.
-                                        //       Use CSOM to get the default 'display' form.
-                                
-
-                                        // Redirects to the correct url
-                                        window.location = redirectUrl;
-                                        break;
+                    default:
+                        // custom function
+                        promise = SPUtils.callFunctionWithParams(scope.$parent[scope.spAction], scope.$parent);
+                        break;
+                }
 
 
-                                    case 'edit':
-                                        redirectUrl = window.location.href.toLowerCase().replace(/disp|new/, 'edit');
-                                        // TODO: Get the right default 'EditForm' url.
-                                        //       Use spList.getProperties({$expand: 'Forms'}) to get the list forms.
-                                        //       Use CSOM to get the default 'edit' form.
+                $q.when(promise).then(function(result) {
 
-                                        // Redirects to the correct url
-                                        window.location = redirectUrl;
-                                        break;
+                    if (result !== false) {
 
+                        //var redirectUrl = scope.redirectUrl;
 
-                                    case 'new':
-                                        redirectUrl = window.location.href.toLowerCase().replace(/disp|edit/, 'new');
-                                        // TODO: Get the right default 'NewForm' url.
-                                        //       Use spList.getProperties({$expand: 'Forms'}) to get the list forms.
-                                        //       Use CSOM to get the default 'new' form.
+                        if (redirectUrl) {
+
+                            var item = scope.formCtrl.getItem();
+                            var list = item.list;
+
+                            // Checks for pre-defined values in the redirect url.
+                            switch(redirectUrl.toLowerCase()) {
+
+                                case 'display':
+
+                                    list.getDefaultDisplayFormUrl().then(function(url) {
 
                                         // Redirects to the correct url
-                                        window.location = redirectUrl;
-                                        break;
+                                        var params = window.location.search;
+                                        var idParam = 'ID=' + item.Id;
+
+                                        if (params.indexOf(idParam) == -1) {
+
+                                            if (params === "") {
+                                                params = "?" + idParam;
+                                            } else {
+                                                params = "?" + idParam + '&' + params.substr(1);
+                                            }
+
+                                        }
+                                        window.location = url + params;
+                                        
+                                    });
+                            
+                                    break;
 
 
-                                    case 'default':
+                                case 'edit':
 
-                                        if (SP.UI.ModalDialog.get_childDialog()) {
+                                    list.getDefaultEditFormUrl().then(function(url) {
 
-                                            $timeout(function() {
+                                        // Redirects to the correct url
+                                        var params = window.location.search;
+                                        var idParam = 'ID=' + item.Id;
 
-                                                SP.UI.ModalDialog.get_childDialog().close();
+                                        if (params.indexOf(idParam) == -1) {
 
-                                            });
+                                            if (params === "") {
+                                                params = "?" + idParam;
+                                            } else {
+                                                params = "?" + idParam + '&' + params.substr(1);
+                                            }
 
-                                        } else {
+                                        }
+                                        window.location = url + params;
+                                        
+                                    });
 
-                                            redirectUrl = utils.getQueryStringParamByName('Source') || _spPageContextInfo.webServerRelativeUrl;
-                                            // TODO: Redireccionar a la vista por defecto de la lista.
+                                    break;
+
+
+                                case 'new':
+
+                                    list.getDefaultNewFormUrl().then(function(url) {
+
+                                        // Redirects to the correct url
+                                        window.location = url;
+                                        
+                                    });
+
+                                    break;
+
+
+                                case 'default':
+                                            
+                                    var dialog = SP.UI.ModalDialog.get_childDialog();
+
+                                    if (dialog) {
+
+                                        $timeout(function() {
+
+                                            try {
+
+                                                scope.dialogReturnValue = item;
+
+                                                // NOTE: The next call will throw an error if the dialog wasn't opened with the method
+                                                //       SP.UI.ModalDialog.commonModalDialogOpen(url, options, callback, args)
+                                                dialog.commonModalDialogClose(scope.dialogResult, scope.dialogReturnValue);
+
+                                            } catch(e) {
+
+                                                dialog.close(scope.dialogResult);
+
+                                            }
+
+                                        });
+
+                                    } else {
+
+                                        var redirectPromise = utils.getQueryStringParamByName('Source');
+                                        if (redirectPromise === void 0) {
+                                            redirectPromise = list.getDefaultViewUrl();
+                                        }
+
+                                        $q.when(redirectPromise).then(function(redirectUrl) {
 
                                             // Redirects to the correct url
                                             window.location = redirectUrl;
+                                        });
 
-                                        }
+                                    }
 
-                                        break;
+                                    break;
 
-                                }
+                                default:
+
+                                    // Redirects to the correct url
+                                    window.location = redirectUrl;
+
+                                    break;
 
                             }
 
                         }
 
-                    }, function(err) {
+                    }
 
-                        if (err) {
+                }, function(err) {
 
-                            // Show error details in the console.
-                            console.error(err);
+                    if (err) {
 
-                        }
+                        // Show error details in the console.
+                        console.error(err);
 
-                    })
+                    }
 
-                    .finally(function() {
+                })
 
-                        // Sets the form in its IDLE state.
-                        scope.formCtrl.setFormStatus(scope.status.IDLE);
+                .finally(function() {
 
-                    });
+                    // Sets the form in its IDLE state.
+                    scope.formCtrl.setFormStatus(scope.status.IDLE);
+
+                });
 
             } // makeAction
 

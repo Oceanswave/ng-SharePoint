@@ -26,8 +26,7 @@ angular.module('ngSharePoint').directive('spfieldAttachments',
 			require: ['^spform', 'ngModel'],
 			replace: true,
 			scope: {
-				mode: '@',
-				value: '=ngModel'
+				mode: '@'
 			},
 			templateUrl: 'templates/form-templates/spfield-control-loading.html',
 			
@@ -44,10 +43,16 @@ angular.module('ngSharePoint').directive('spfieldAttachments',
 
 						$scope.DeleteAttachmentText = STSHtmlEncode(Strings.STS.L_DeleteDocItem_Text);
 						$scope.AttachFileText = Resources.core.cui_ButAttachFile;
-						$scope.L_Menu_LCID = L_Menu_LCID;
+						$scope.LanguageID = _spPageContextInfo.currentLanguage.toString();
+
 					},
 
-					watchValueFn: function(newValue) {
+					renderFn: function(newValue, oldValue) {
+
+						// Check if the old and new values really differ.
+						if (newValue === null && oldValue === undefined) return;
+
+						
 
 						// Show loading animation.
 						directive.setElementHTML('<div><img src="/_layouts/15/images/loadingcirclests16.gif" alt="" /></div>');

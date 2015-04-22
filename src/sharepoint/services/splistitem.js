@@ -45,6 +45,10 @@ angular.module('ngSharePoint').factory('SPListItem',
 
                 if (typeof data === 'object' && data.concat === void 0) { //-> is object && not is array
 
+                    if (data.list !== void 0) {
+                        delete data.list;
+                    }
+                    
                     utils.cleanDeferredProperties(data);
                     angular.extend(this, data);
 
@@ -109,15 +113,21 @@ angular.module('ngSharePoint').factory('SPListItem',
         //
         // @returns: Promise with the result of the REST query.
         //
-        SPListItemObj.prototype.getProperties = function() {
+        SPListItemObj.prototype.getProperties = function(expandProperties) {
 
             var self = this;
             var def = $q.defer();
+            var query = {};
+
+            if (expandProperties !== void 0) {
+                query.$expand = expandProperties;
+            }
+
             var executor = new SP.RequestExecutor(self.list.web.url);
 
             executor.executeAsync({
 
-                url: self.getAPIUrl(),
+                url: self.getAPIUrl() + utils.parseQuery(query),
                 method: 'GET', 
                 headers: { 
                     "Accept": "application/json; odata=verbose"
@@ -176,6 +186,61 @@ angular.module('ngSharePoint').factory('SPListItem',
             return def.promise;
 
         }; // getProperties
+
+
+
+        // ****************************************************************************     
+        // getFieldValuesAsHtml
+        //
+        // Gets FieldValuesAsHtml properties of the item.
+        //
+        // This method performs a REST call to _api/web/list/item/FieldValuesAsHtml
+        // Thats different to expand the property when executes getProperties.
+        // That method makes a call like _api/web/list/item?$expand=FieldValuesAsHtml.
+        // Expanding this property does not retrieve detailed information lookup 
+        // values neither user fields. Is necessary to call this method.
+        //
+        // @returns: Promise with the result of the REST query.
+        //
+        SPListItemObj.prototype.getFieldValuesAsHtml = function() {
+
+            var self = this;
+            var def = $q.defer();
+            var executor = new SP.RequestExecutor(self.list.web.url);
+
+            executor.executeAsync({
+
+                url: self.getAPIUrl() + '/FieldValuesAsHtml',
+                method: 'GET', 
+                headers: { 
+                    "Accept": "application/json; odata=verbose"
+                }, 
+
+                success: function(data) {
+
+                    var d = utils.parseSPResponse(data);
+
+                    utils.cleanDeferredProperties(d);
+                    self.FieldValuesAsHtml = d;
+                    def.resolve(this);
+                }, 
+
+                error: function(data, errorCode, errorMessage) {
+
+                    var err = utils.parseError({
+                        data: data,
+                        errorCode: errorCode,
+                        errorMessage: errorMessage
+                    });
+
+                    def.reject(err);
+                }
+            });
+
+            return def.promise;
+
+        };  // getFieldValuesAsHtml
+
 
 
 
@@ -358,6 +423,24 @@ angular.module('ngSharePoint').factory('SPListItem',
 
             SPUtils.getFileBinary(file).then(function(binaryData) {
 
+                // Set the headers for the REST API call.
+                // ----------------------------------------------------------------------------
+                var headers = {
+                    "Accept": "application/json; odata=verbose"
+                };
+
+
+
+                var requestDigest = document.getElementById('__REQUESTDIGEST');
+                // Remote apps that use OAuth can get the form digest value from the http://<site url>/_api/contextinfo endpoint.
+                // SharePoint-hosted apps can get the value from the #__REQUESTDIGEST page control if it's available on the SharePoint page.
+
+                if (requestDigest !== null) {
+                    headers['X-RequestDigest'] = requestDigest.value;
+                }
+
+
+
                 executor.executeAsync({
 
                     url: self.getAPIUrl() + "/AttachmentFiles/add(FileName='" + file.name + "')",
@@ -365,15 +448,14 @@ angular.module('ngSharePoint').factory('SPListItem',
                     binaryStringRequestBody: true,
                     body: binaryData,
                     state: "Update",
-                    headers: { 
-                        "Accept": "application/json; odata=verbose"
-                    },
+                    headers: headers,
 
                     success: function(data) {
 
                         var d = utils.parseSPResponse(data);
-
+                        
                         def.resolve(d);
+
                     }, 
 
                     error: function(data, errorCode, errorMessage) {
@@ -419,6 +501,8 @@ angular.module('ngSharePoint').factory('SPListItem',
                 "X-HTTP-Method": "DELETE"
             };
 
+
+
             var requestDigest = document.getElementById('__REQUESTDIGEST');
             // Remote apps that use OAuth can get the form digest value from the http://<site url>/_api/contextinfo endpoint.
             // SharePoint-hosted apps can get the value from the #__REQUESTDIGEST page control if it's available on the SharePoint page.
@@ -426,6 +510,7 @@ angular.module('ngSharePoint').factory('SPListItem',
             if (requestDigest !== null) {
                 headers['X-RequestDigest'] = requestDigest.value;
             }
+
 
 
             executor.executeAsync({
@@ -439,6 +524,7 @@ angular.module('ngSharePoint').factory('SPListItem',
                     var d = utils.parseSPResponse(data);
 
                     def.resolve(d);
+
                 }, 
 
                 error: function(data, errorCode, errorMessage) {
@@ -477,36 +563,101 @@ angular.module('ngSharePoint').factory('SPListItem',
             var def = $q.defer();
 
 
+
+            function processAttachmentsInternal(attachmentsOperations, index, deferred) {
+
+                index = index || 0;
+                deferred = deferred || $q.defer();
+
+                var attachmentOperation = attachmentsOperations[index++];
+
+                if (attachmentOperation === void 0) {
+
+                    deferred.resolve();
+                    return deferred.promise;
+
+                }
+
+                switch(attachmentOperation.operation.toLowerCase()) {
+
+                    case 'add':
+                        self.addAttachment(attachmentOperation.file).finally(function() {
+
+                            processAttachmentsInternal(attachmentsOperations, index, deferred);
+
+                        }).catch(function(err) {
+
+                            try {
+
+                                var errorStatus = err.data.statusCode + ' (' + err.data.statusText + ')';
+                                alert(attachmentOperation.file.name + '\n\n' + err.code + '\n' + errorStatus + '\n\n' + err.message);
+
+                            } catch(e) {
+
+                                console.log(err);
+                                alert('Error attaching the file ' + attachmentOperation.file.name);
+
+                            }
+
+                        });
+                        break;
+
+                    case 'remove':
+                        self.removeAttachment(attachmentOperation.fileName).finally(function() {
+
+                            processAttachmentsInternal(attachmentsOperations, index, deferred);
+
+                        });
+                        break;
+
+                }
+
+                return deferred.promise;
+
+            } // processAttachmentsInternal
+
+
+
             // Check if the attachments property has been initialized
             if (this.attachments !== void 0) {
 
-                var promises = [];
-
-                if (this.attachments.add !== void 0 && this.attachments.add.length > 0) {
-                    angular.forEach(this.attachments.add, function(file) {
-                        promises.push(self.addAttachment(file));
-                    });
-                }
+                var attachmentsOperations = [];
 
                 if (this.attachments.remove !== void 0 && this.attachments.remove.length > 0) {
                     angular.forEach(this.attachments.remove, function(fileName) {
-                        promises.push(self.removeAttachment(fileName));
+                        attachmentsOperations.push({
+                            operation: 'remove',
+                            fileName: fileName
+                        });
                     });
                 }
 
-                $q.all(promises).then(function() {
+                if (this.attachments.add !== void 0 && this.attachments.add.length > 0) {
+                    angular.forEach(this.attachments.add, function(file) {
+                        attachmentsOperations.push({
+                            operation: 'add',
+                            file: file
+                        });
+                    });
+                }
+
+
+                // Process the attachments operations sequentially with promises.
+                processAttachmentsInternal(attachmentsOperations).then(function() {
 
                     // Clean up the attachments arrays
                     self.attachments.add = [];
                     self.attachments.remove = [];
 
                     def.resolve();
+
                 });
 
             } else {
 
                 // Nothing to do
                 def.resolve();
+
             }
 
 
@@ -560,11 +711,12 @@ angular.module('ngSharePoint').factory('SPListItem',
                 angular.forEach(self.list.Fields, function(field) {
                     
                     if (field.TypeAsString === 'Computed' || field.ReadOnlyField) {
-                        delete saveObj[field.InternalName];
+                        // delete saveObj[field.InternalName];
+                        delete saveObj[field.EntityPropertyName];
                     }
 
                     // NOTA DE MEJORA!
-                    // Se pueden controlar los campos e tipo Lookup y User para que convierta los valores
+                    // Se pueden controlar los campos de tipo Lookup y User para que convierta los valores
                     // al nombre de campo correcto (si es que están mal)
                     // 
                     // Ej. un campo que se llama Sala y el objeto tiene
@@ -575,16 +727,25 @@ angular.module('ngSharePoint').factory('SPListItem',
                     // obj.SalaId = 12
                     //
 
+                    var fieldType = field.originalTypeAsString || field.TypeAsString;
+                    // var fieldName = field.InternalName;
+                    var fieldName = field.EntityPropertyName;
+                    if (fieldType == 'Lookup' || fieldType == 'LookupMulti' || fieldType == 'User' || fieldType == 'UserMulti') {
+                        fieldName = fieldName + 'Id';
+                    }
+
+                    if (fieldType == 'LookupMulti' || fieldType == 'MultiChoice' || fieldType == 'UserMulti') {
+
+                        // To prevent Collection(Edm.String)[Nullable=False] error.
+                        // This error will be thrown even if this is not a required field
+                        if (saveObj[fieldName] === null) {
+                            delete saveObj[fieldName];
+                        }
+                    }
+
                     // Required fields with null values don't allow to save the item
                     // Deleting this properties the item will be saved correctly
                     if (field.Required === true) {
-
-                        var fieldType = field.originalTypeAsString || field.TypeAsString;
-                        var fieldName = field.InternalName;
-                        if (fieldType == 'Lookup' || fieldType == 'LookupMulti' || fieldType == 'User' || fieldType == 'UserMulti') {
-                            fieldName = fieldName + 'Id';
-                        }
-
                         if (saveObj[fieldName] === null) {
 
                             delete saveObj[fieldName];
@@ -597,6 +758,9 @@ angular.module('ngSharePoint').factory('SPListItem',
                 delete saveObj.attachments;
                 delete saveObj.AttachmentFiles;
                 delete saveObj.ContentType;
+                delete saveObj.FieldValuesAsHtml;
+                delete saveObj.Folder;
+                delete saveObj.File;
 
                 angular.extend(body, saveObj);
 

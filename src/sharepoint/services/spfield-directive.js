@@ -16,9 +16,9 @@
 
 angular.module('ngSharePoint').service('SPFieldDirective', 
 
-    ['$compile', '$http', '$templateCache', '$q',
+    ['$compile', '$http', '$templateCache', '$q', 'SPUtils',
 
-    function SPFieldDirective_Factory($compile, $http, $templateCache, $q) {
+    function SPFieldDirective_Factory($compile, $http, $templateCache, $q, SPUtils) {
 
         // ****************************************************************************
         // Private functions
@@ -30,7 +30,10 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
             // Update the model property '$viewValue' to change the model state to $dirty and
             // force to run $parsers, which include validators.
-            this.modelCtrl.$setViewValue(this.modelCtrl.$viewValue || null);
+            var value = this.modelCtrl.$viewValue;
+            if (!angular.isDefined(value)) value = null;
+
+            this.modelCtrl.$setViewValue(value);
         }
 
 
@@ -123,7 +126,15 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *                          
          *              watchValueFn (function): If defined, applies it after the default behavior 
          *                                       in the 'Watch for field value changes' function.
+         *                                       Deprecated: new spfield-* don't have attribute:
+         *                                          value: '=ngModel'
+         *                                       This behaviors should be done on renderFn
          *
+         *              renderFn (function):     If defined, applies it when modelController need to
+         *                                       update the view (render). By default, this function
+         *                                       set's the scope.value variable with the new value
+         *                                       (modelCtrl.$viewValue)
+
          *              onValidateFn (function): If defined, applies it after the default behavior 
          *                                       in the '$scope.$on('validate', ...)' function.
          *
@@ -139,8 +150,16 @@ angular.module('ngSharePoint').service('SPFieldDirective',
             $scope.formCtrl = controllers[0];
             $scope.modelCtrl = controllers[1];
             $scope.name = $attrs.name;
+            directive.name = $scope.name;
             $scope.schema = $scope.formCtrl.getFieldSchema($attrs.name);
             $scope.item = $scope.formCtrl.getItem(); // Needed?
+            $scope.currentMode = $scope.mode || $scope.formCtrl.getFormMode();
+
+            $scope.formCtrl.registerField(this);
+
+            $scope.$on('$destroy', function() {
+                $scope.formCtrl.unregisterField(directive);
+            });
 
 
             // Apply the directive initializacion if specified.
@@ -311,6 +330,54 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
 
             // ****************************************************************************
+            // Validate the field.
+            //
+            directive.validate = function() {
+
+                if ($scope.currentMode !== 'edit') return;
+
+                var deferred = $q.defer();
+                $scope.modelCtrl.$dirty = true;
+
+                defaultOnValidateFn.apply($scope, arguments);
+
+                if (angular.isFunction(directive.onValidateFn)) {
+
+                    $q.when(directive.onValidateFn.apply(directive, arguments)).then(function() {
+
+                        if ($scope.schema.onValidate !== undefined) {
+
+                            $q.when(SPUtils.callFunctionWithParams($scope.schema.onValidate, $scope)).then(function(result) {
+
+                                deferred.resolve();
+                            });
+
+                        } else {
+
+                            deferred.resolve();
+                        }
+                    });
+
+                } else {
+
+                    if ($scope.schema.onValidate !== undefined) {
+
+                        $q.when(SPUtils.callFunctionWithParams($scope.schema.onValidate, $scope)).then(function(result) {
+
+                            deferred.resolve();
+                        });
+
+                    } else {
+
+                        deferred.resolve();
+                    }
+                }
+
+                return deferred.promise;
+            };
+
+
+            // ****************************************************************************
             // Watch for form mode changes.
             //
             $scope.$watch(function() {
@@ -346,15 +413,22 @@ angular.module('ngSharePoint').service('SPFieldDirective',
             }, true);
 
 
-
             // ****************************************************************************
-            // Validate the field.
+            // New model value ... render
             //
-            $scope.unregisterValidateFn = $scope.$on('validate', function() {
+            $scope.modelCtrl.$render = function() {
 
-                defaultOnValidateFn.apply($scope, arguments);
-                if (angular.isFunction(directive.onValidateFn)) directive.onValidateFn.apply(directive, arguments);
-            });
+                if (angular.isFunction(directive.renderFn)) {
+                    directive.renderFn(directive, arguments);
+                } else {
+                    $scope.value = $scope.modelCtrl.$viewValue;
+                }
+
+            };
+
+
+
+
 
 
         }; // baseLinkFn
