@@ -1,4 +1,3 @@
-
 /**
  * @ngdoc overview
  * @name ngSharePointFormPage
@@ -12,8 +11,7 @@
  */
 
 
-angular.module('ngSharePointFormPage', ['ngSharePoint', 'oc.lazyLoad']);
-
+angular.module('ngSharePointFormPage', ['ngSharePoint', 'ngSharePoint.templates', 'oc.lazyLoad']);
 
 
 angular.module('ngSharePointFormPage').config(
@@ -41,9 +39,9 @@ angular.module('ngSharePointFormPage').config(
 
 angular.module('ngSharePointFormPage').directive('spformpage', 
 
-    ['SharePoint', 'SPUtils', 'SPListItem', '$q', '$http', '$templateCache', '$compile', 'ctx', '$ocLazyLoad', 'SPExpressionResolver', 
+    ['SharePoint', 'SPUtils', 'SPListItem', '$q', '$http', '$templateCache', '$compile', 'ctx', '$ocLazyLoad', '$window', 
 
-    function(SharePoint, SPUtils, SPListItem, $q, $http, $templateCache, $compile, ctx, $ocLazyLoad, SPExpressionResolver) {
+    function(SharePoint, SPUtils, SPListItem, $q, $http, $templateCache, $compile, ctx, $ocLazyLoad, $window) {
         
         return {
 
@@ -60,6 +58,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                 var controlMode = 'display';
                 var currentMode = 'display';
                 $scope.mode = 'display';
+
                 /*
                  * SPClientTemplates.ClientControlMode:
                  *
@@ -70,7 +69,6 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                  * View: 4
                  *
                  */
-
                 switch(ctx.ControlMode) {
 
                     case SPClientTemplates.ClientControlMode.Invalid:
@@ -211,7 +209,9 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
 
 
-
+                // This method returns the item to edit. If ClientControlMode is New
+                // returns a new Item object inititalized with the specified ContentTypeId
+                // Otherwise, the method retrieves the item from de server.
                 function getItem(itemId) {
 
                     var deferred = $q.defer();
@@ -231,6 +231,9 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                         $scope.list.getItemById(itemId, 'FieldValuesAsHtml').then(function(item) {
 
+                            var ct = utils.getQueryStringParamByName('ContentTypeId');
+                            if (ct !== undefined) item.ContentTypeId = ct;
+
                             deferred.resolve(item);
 
                         }, function(err) {
@@ -247,7 +250,8 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
 
 
-
+                // This gets the template from the server based on the list, the content type and the
+                // form controlMode.
                 function getTemplateUrl() {
 
                     var deferred = $q.defer();

@@ -1,18 +1,15 @@
-/*
-	SPFile - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPFile
+ *
+ * @description
+ * Provides functionality to manage SharePoint files.
+ *
+ * *At the moment, not all methods for manage file objects are implemented in ngSharePoint*
+ *
+ * *Documentation is pending*
+ */
 
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//	SPFile
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPFile', 
 
@@ -23,13 +20,26 @@ angular.module('ngSharePoint').factory('SPFile',
 		'use strict';
 
 
-		// ****************************************************************************
-		// SPFile constructor
-		//
-		// @web: SPWeb instance that contains the file in SharePoint.
-		// @path: Name the file you want to instantiate.
-		//
-		var SPFileObj = function(web, path, fileProperties) {
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFile#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPFile
+         *
+         * @description
+         * Instantiates a new `SPFile` object for a specific SharePoint file in the server. It's possible
+         * to specify their properties.
+         *
+         * By default, in document and picture libraries, when you call {@link ngSharePoint.SPList#getListItems getListItems} or 
+         * {@link ngSharePoint.SPList#getItemById getItemById}, by default a ´item.File´ property are created and contains
+         * file information.
+         *
+         * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object where the file is stored.
+         * @param {string} path The server relative path of the file.
+         * @param {object} fileProperties Properties to initialize the object
+         *
+         */
+ 		var SPFileObj = function(web, path, fileProperties) {
 
 			if (web === void 0) {
 				throw '@web parameter not specified in SPFile constructor.';
@@ -162,7 +172,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			} else {
 
-				this.getProperties({ $expand: 'ListItemAllFields, ListItemAllFields/ParentList'}).then(function() {
+				this.getProperties({ $expand: 'ListItemAllFields,ListItemAllFields/ParentList'}).then(function() {
 
 					var list = SPObjectProvider.getSPList(self.web, self.ListItemAllFields.ParentList.Id, self.ListItemAllFields.ParentList);
 					self.List = list;
@@ -197,7 +207,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 				if (this.List !== void 0) {
 
-					this.getProperties({ $expand: 'ListItemAllFields, ListItemAllFields/ParentList'}).then(function() {
+					this.getProperties({ $expand: 'ListItemAllFields,ListItemAllFields/ParentList'}).then(function() {
 
 						self.ListItem = SPObjectProvider.getSPListItem(self.List, self.ListItemAllFields);
 						self.updateAPIUrlById(self.List, self.ListItem.Id);
@@ -354,27 +364,34 @@ angular.module('ngSharePoint').factory('SPFile',
 				'Accept': 'application/json; odata=verbose'
 			};
 
+			var requestDigest = document.getElementById('__REQUESTDIGEST');
+			if (requestDigest !== null) {
+				headers['X-RequestDigest'] = requestDigest.value;
+			}
+			
 			var url = self.apiUrl + '/moveto(newurl=\'' + pathToMove + '/' + self.Name + '\',flags=1)';
 
-			var executor = new SP.RequestExecutor(self.web.url);
+			$http({
 
-			executor.executeAsync({
-				url: url,
 				method: 'POST',
+				url: url,
+				headers: headers
 
-				success: function () {
-					def.resolve();
-				},
+			}).then(function() {
 
-				error: function (data, errorCode, errorMessage) {
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
+				def.resolve();
 
-					def.reject(err);
-				}
+			}, function(error) {
+
+				var err = utils.parseError({
+					data: error.data.error,
+					errorCode: error.data.error.code,
+					errorMessage: error.data.error.message
+				});
+				err.data.body = err.data.message.value;
+				err.message = err.data.code;
+
+				def.reject(err);
 			});
 
 			return def.promise;
@@ -406,26 +423,29 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			var url = self.apiUrl + '/copyto(strnewurl=\'' + pathToCopy + '/' + self.Name + '\',boverwrite=true)';
 
-			var executor = new SP.RequestExecutor(self.web.url);
+			$http({
 
-			executor.executeAsync({
-				url: url,
 				method: 'POST',
+				url: url,
+				headers: headers
 
-				success: function () {
-					def.resolve();
-				},
+			}).then(function() {
 
-				error: function (data, errorCode, errorMessage) {
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
+				def.resolve();
 
-					def.reject(err);
-				}
+			}, function(error) {
+
+				var err = utils.parseError({
+					data: error.data.error,
+					errorCode: error.data.error.code,
+					errorMessage: error.data.error.message
+				});
+				err.data.body = err.data.message.value;
+				err.message = err.data.code;
+
+				def.reject(err);
 			});
+
 
 			return def.promise;
 		}; // copyFile
@@ -456,7 +476,7 @@ angular.module('ngSharePoint').factory('SPFile',
 				success: function() {
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.resolve();
 					});
@@ -472,7 +492,7 @@ angular.module('ngSharePoint').factory('SPFile',
 					});
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.reject(err);
 					});
@@ -508,7 +528,7 @@ angular.module('ngSharePoint').factory('SPFile',
 				success: function() {
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						delete self.CheckedOutByUser;
 						def.resolve();
@@ -525,7 +545,7 @@ angular.module('ngSharePoint').factory('SPFile',
 					});
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.reject(err);
 					});

@@ -23,7 +23,7 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 		var spfieldLabel_DirectiveDefinitionObject = {
 
 			restrict: 'EA',
-			require: '^spform',
+			require: '?^spform',
 			replace: true,
 			scope: {
 				mode: '@'
@@ -32,6 +32,8 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 
 
 			link: function($scope, $element, $attrs, spformController) {
+
+				if (spformController === null) return;
 
 				$scope.schema = spformController.getFieldSchema($attrs.name);
 
@@ -45,9 +47,14 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 
 					// Default label
 					// If no 'label' attribute specified assigns the 'Title' property from the field schema as label.
-					// NOTE: If field don't exists, assigns an empty label or code will crash when try to access the schema.
-					//	     As alternative could assign the 'name' attribute as label.
-					$scope.label = ($scope.schema ? $scope.schema.Title : '');
+					$scope.$watch(function() {
+
+						return ($scope.schema ? $scope.schema.Title : '');
+
+					}, function(newValue) {
+
+						$scope.label = newValue;
+					});
 				}
 
 

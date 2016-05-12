@@ -16,12 +16,12 @@
 // ***************************************************************************
 // javascript extensions
 //
-String.prototype.ltrim = function(s) { 
-    return this.replace(new RegExp("^" + s), ''); 
+String.prototype.ltrim = function(s) {
+    return this.replace(new RegExp("^" + s), '');
 };
 
 
-String.prototype.rtrim = function(s) { 
+String.prototype.rtrim = function(s) {
     return this.replace(new RegExp(s + "*$"), '');
 };
 
@@ -29,8 +29,6 @@ String.prototype.rtrim = function(s) {
 String.prototype.trimS = function(s) {
 	return this.replace(new RegExp("^" + s), '').replace(new RegExp(s + "*$"), '');
 };
-
-
 
 
 
@@ -50,11 +48,11 @@ var utils = {
 
 	/* No external dependences! */
 	/*
-	x2js: new X2JS({ 
+	x2js: new X2JS({
 		attributePrefix: ''
 	}),
 	*/
-	
+
 
 
 	// ***************************************************************************
@@ -140,7 +138,7 @@ var utils = {
 	// ***************************************************************************
 	// parseQuery
 	//
-	// Converts the key/value properties of the object passed in the @query parameter 
+	// Converts the key/value properties of the object passed in the @query parameter
 	// to a string ready to use for REST query options QueryString parameters.
 	//
 	// @query: Object with REST query options like a key/value pairs properties.
@@ -149,7 +147,7 @@ var utils = {
 	parseQuery: function(query) {
 
 		if (query === void 0) return '';
-		
+
 		var strQuery = '';
 
 		angular.forEach(query, function(value, key) {
@@ -232,19 +230,19 @@ var utils = {
 		// Status code 204 = No content, so return empty object.
 		// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html)
 
-		if (response.statusCode != 204) {
+		if (response.statusCode !== 204 && response.status !== 204) {
 
-			d = angular.fromJson(response.body || '{ "d": {} }').d;
+			d = angular.fromJson(response.body || response.data || '{ "d": {} }').d;
 
 			if (d.results) {
 				d = d.results;
 			}
 
 		}
-		
+
 		// If a new REQUESTDIGEST value was received in the last server call,
 		// update the __REQUESTDIGEST form control with the new value.
-		if (response.headers['X-REQUESTDIGEST']) {
+		if (response.headers !== null && response.headers['X-REQUESTDIGEST']) {
 
 			var requestDigest = document.getElementById('__REQUESTDIGEST');
 			if (requestDigest !== null) {
@@ -321,7 +319,7 @@ var utils = {
 		for (var i = 1, length = arguments.length; i < length; i++) {
 
 			source = arguments[i];
-			
+
 			for (prop in source) {
 				if (hasOwnProperty.call(source, prop)) {
 					obj[prop] = source[prop];
@@ -401,6 +399,34 @@ var utils = {
 	}	// deepExtend
 
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// This method is used to solve the bug of SharePoint Datepicker that jumps to
+// top of window in Chrome.
+function OnIframeLoadFinish() {
+    var picker;
+
+    if (typeof this.Picker !== 'undefined')
+        picker = this.Picker;
+    if (picker !== null && typeof picker.readyState !== 'undefined' && picker.readyState !== null && picker.readyState === "complete") {
+        document.body.scrollLeft = g_scrollLeft;
+        document.body.scrollTop = g_scrollTop;
+        g_scrollTop = document.getElementById('s4-workspace').scrollTop;
+        picker.style.display = "block";
+        if (typeof document.frames !== 'undefined' && Boolean(document.frames)) {
+            var frame = document.frames[picker.id];
+
+            if (frame !== null && typeof frame.focus === 'function')
+                frame.focus();
+        }
+        else {
+            picker.focus();
+        }
+    }
+    setTimeout(function(){
+        document.getElementById('s4-workspace').scrollTop = g_scrollTop;
+    }, 1);
+}
 
 /*
 	CamlHelper
@@ -859,41 +885,31 @@ angular.module('CamlHelper', [])
 	};
 });
 
-/*
-	ngSharePoint - module
-
-	The ngSharePoint module is an Angular wrapper for SharePoint 2013.
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
-	
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
-
-
-
-// GitHub documentation style:
 
 /**
- * @ngdoc module
+ * @ngdoc overview
  * @name ngSharePoint
- * @module ngSharePoint
- * @description
  *
- * # ngSharePoint (core module)
+ * @description 
+ * ### ngSharePoint (core module)
  * The ngSharePoint module is an Angular wrapper for SharePoint 2013.
+ * 
+ * ## Usage
+ * To use ngSharePoint you'll need to include this module as a dependency within your angular app.
+ * <pre>
  *
- * <div doc-module-components="ngSharePoint"></div>
+ *     	// In your module application include 'ngSharePoint' as a dependency
+ *     	var myApp = angular.module('myApp', ['ngSharePoint']);
+ *
+ * </pre>
+ * 
+ * @author Pau Codina [<pau.codina@kaldeera.com>]
+ * @author Pedro Castro [<pedro.cm@gmail.com>]
+ * @license Licensed under the MIT License
+ * @copyright Copyright (c) 2014
  */
 
-
-
-///////////////////////////////////////
-//	ngSharePoint
-///////////////////////////////////////
-
-angular.module('ngSharePoint', ['ngSharePoint.templates', 'CamlHelper']);
+angular.module('ngSharePoint', ['CamlHelper']);
 
 
 
@@ -914,29 +930,27 @@ angular.module('ngSharePoint').config(['$compileProvider', function($compileProv
 
 
 
-// ****************************************************************************
-// Module constants
-//
+/** 
+ * Module constants
+ */
 angular.module('ngSharePoint').value('Constants', {
 	errorTemplate: 'templates/error.html',
 	userProfileUrl: '_layouts/userdisp.aspx?ID='
 });
 
-/*
-	SharePoint - provider
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
-
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
 
 
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SharePoint
+ *
+ * @description
+ * Provides top level access to SharePoint web sites api. Through this provider it is possible to access to any SharePoint web.
+ *
+ * @requires ngSharePoint.SPUtils
+ * @requires ngSharePoint.SPWeb
+ */
 
-///////////////////////////////////////
-//	SharePoint
-///////////////////////////////////////
 
 angular.module('ngSharePoint').provider('SharePoint', 
 
@@ -949,29 +963,50 @@ angular.module('ngSharePoint').provider('SharePoint',
 		var SharePoint = function($cacheFactory, $q, SPUtils, SPWeb) {
 
 
-			// ****************************************************************************		
-			// getCurrentWeb
-			//
-			// Gets the current web.
-			//
-			// @returns: Promise with a new SPWeb (factory) object that allow access to 
-			//			 web methods and properties.
-			//
+			/**
+			 * @ngdoc function
+			 * @name ngSharePoint.SharePoint#getCurrentWeb
+			 * @methodOf ngSharePoint.SharePoint
+			 * 
+			 * @description
+			 * Returns an {@link ngSharePoint.SPWeb SPWeb} object initialized with the 
+			 * current SharePoint web. That means, the web context where 
+			 * this sentence is executed
+			 * 
+			 * @returns {promise} Promise with a new {@link ngSharePoint.SPWeb SPWeb} object that allows access to
+			 * web methods and properties
+			 * 
+			 * @example
+			 * <pre>
+			 *	SharePoint.getCurrentWeb().then(function(web) {
+			 *	  // ... do something with the web object
+			 *	});
+			 * </pre>
+			 */
 			this.getCurrentWeb = function() {
 				return this.getWeb();
 			};
 
 
-
-			// ****************************************************************************		
-			// getWeb
-			//
-			// Gets the current web.
-			//
-			// @url: The url of the web you want to retrieve.
-			// @returns: Promise with a new SPWeb (factory) object that allow access to 
-			//			 web methods and properties.
-			//
+			/**
+			 * @ngdoc function
+			 * @name ngSharePoint.SharePoint#getWeb
+			 * @methodOf ngSharePoint.SharePoint
+			 * 
+			 * @description
+			 * Returns the {@link ngSharePoint.SPWeb SPWeb} specified by the required url
+			 * 
+			 * @param {string} url The url of the web that you want to retrieve
+			 * @returns {promise} Promise with a new {@link ngSharePoint.SPWeb SPWeb} object that allows access to
+			 * web methods and properties
+			 * 
+			 * @example
+			 * <pre>
+			 *	SharePoint.getWeb('/sites/rrhh').then(function(web) {
+			 *	  // ... do something with the 'rrhh' web object
+			 *	});
+			 * </pre>
+			 */
 			this.getWeb = function(url) {
 				var def = $q.defer();
 
@@ -1215,21 +1250,18 @@ angular.module('ngSharePoint').provider('SPConfig',
     }
 ]);
 
-/*
-    SPContentType - factory
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPContentType
+ *
+ * @description
+ * SPContentType factory provides access to all content types (web or list). This factory allows 
+ * retrieval of associated fields. It also, allows to get and set `jsLink` properties.
+ *
+ * *At the moment, not all SharePoint API methods for content type objects are implemented in ngSharePoint*
+ *
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//  SPList
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPContentType', 
 
@@ -1240,13 +1272,38 @@ angular.module('ngSharePoint').factory('SPContentType',
         'use strict';
 
 
-        // ****************************************************************************
-        // SPContentType constructor
-        //
-        // @parentObject: The object instance of the content type parent.
-        // @id: Name or Guid of the content type you want to instantiate.
-        // @data: Properties 
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPContentType#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPContentType
+         *
+         * @description
+         * Instantiates a new `SPContentType` object for a specific web or list content type in the server.
+         * It's possible to specify their properties.
+         *
+         * @param {object} parentObject A valid {@link ngSharePoint.SPWeb SPWeb} or {@link ngSharePoint.SPList SPList} object where the content type is associated.
+         * @param {string} id Content type ID.
+         * @param {object} contentTypeProperties Properties to initialize the object
+         *
+         * @example
+         * Use {@link ngSharePoint.SPList#getContentType SPList.getContentType} and {@link ngSharePoint.SPList#getContentTypes SPList.getContentTypes} to 
+         * retrieve instances of the associated content types.
+         *
+         * <pre>
+         *   list.getContentType('Issue').then(function(issueCt) {
+         *
+         *     issueCt.getFields().then(function() {
+         *
+         *          angular.forEach(issueCt.Fields, function(field) {
+         *              console.log(field.Title);
+         *          });
+         *
+         *     });
+         *   });
+         * </pre>
+         *
+         */
         var SPContentTypeObj = function(parentObject, id, contentTypeProperties) {
 
             if (parentObject === void 0) {
@@ -1294,13 +1351,64 @@ angular.module('ngSharePoint').factory('SPContentType',
 
 
 
-        // ****************************************************************************
-        // getFields
-        //
-        // Gets content type fields
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPContentType#getFields
+         * @methodOf ngSharePoint.SPContentType
+         *
+         * @description
+         * This method retrieves the Fields collection of the content type and creates a new object property
+         * called "Fields" that contains a named property for every field.
+         *
+         * After a call to this method, the schema of every field is available in the content type and all
+         * their properties (default values, validation expressions, choice values or lookup properties).
+         *
+         * For a complete list of field properties go to Microsoft
+         * SharePoint {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldProperties field api reference}.
+         * Also, there are additional field specific properties that you can retrieve
+         * based on the field type:
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldCalculated FieldCalculated},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldCollection FieldCollection},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldComputed FieldComputed},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldDateTime FieldDateTime},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldGeolocation FieldGeolocation},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldGuid FieldGuid},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldLookup FieldLookup and FieldUser},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldMultiChoice FieldMultiChoice, FieldChoice, and FieldRatingScale},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldMultiLineText FieldMultiLineText},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldNumber FieldNumber and FieldCurrency},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldText FieldText},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldUrl FieldUrl},
+         *
+         * With all of this information, you might construct new interfaces (views, forms, etc) that follow
+         * definitions of any SharePoint content type.
+         *
+         * *Note*: The list of fields of the list isn't necessaray equal to the item content type.
+         *
+         * @returns {promise} promise with an object that contains all of the fields schema
+         *
+         * @example
+         * <pre>
+         *   // a pre-initialized "ct" object ...
+         *   ct.getFields().then(function() {
+         *
+         *       // at this point, you have access to the definition of any content type field
+         *       console.log(ct.Fields.Title.DefaultValue);
+         *       // this returns '' or any defined value
+         *
+         *       console.log(ct.Fields.DueDate.Required);                 
+         *       // this returns true or false
+         *
+         *       console.log(ct.Fields.Editor.ReadOnlyField);
+         *       // this returns true
+         *
+         *       console.log(ct.Fields.ProjectStatus.Choices.results);
+         *       // this returns an array with available choices ['Open', 'Closed', 'Draft']
+         *   });
+         *
+         * </pre>
+         *
+         */
         SPContentTypeObj.prototype.getFields = function() {
 
             var self = this;
@@ -1356,7 +1464,10 @@ angular.module('ngSharePoint').factory('SPContentType',
         }; // getFields
 
 
-
+        /**
+        * Modify the ´jsLinkUrl` property of the content type.
+        * *Internal use*
+        */
         SPContentTypeObj.prototype.setJSLink = function(jsLinkUrl) {
 
             var self = this;
@@ -1408,6 +1519,10 @@ angular.module('ngSharePoint').factory('SPContentType',
 
 
 
+        /**
+        * Retrieves the ´jsLinkUrl` property of the content type.
+        * *Internal use*
+        */
         SPContentTypeObj.prototype.getJSLink = function() {
 
             var self = this;
@@ -1457,105 +1572,24 @@ angular.module('ngSharePoint').factory('SPContentType',
     }
 ]);
 
-/*
-    SPExpressionResolver - service
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolvercurrentUser
+ *
+ * @description
+ * SPExpressionResolvercurrentUser provides functionality to solve current user expressions.
+ * 
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
+angular.module('ngSharePoint').factory('SPExpressionResolvercurrentUser', 
 
+    ['SharePoint', 
 
-
-///////////////////////////////////////
-//  SPExpressionResolver
-///////////////////////////////////////
-
-angular.module('ngSharePoint').service('SPExpressionResolver', 
-
-    ['$q', 'SharePoint', '$parse',
-
-    function SPExpressionResolver_Factory($q, SharePoint, $parse) {
+    function SPExpressionResolvercurrentUser_Factory(SharePoint) {
 
         'use strict';
 
-
-        //var OLD_EXPRESSION_REGEXP = /{\b([\w+( |.)]*|[\[\w+\]]*)}/g;
-        var EXPRESSION_REGEXP = /{(\w+\W*[\w\s./\[\]\(\)]+)}(?!})/g; //-> Faster but less accurate
-        //var EXPRESSION_REGEXP = /{(\w+?(?:[.\/\[](?! )[\w \]]*?)+?)}(?!})/g; //-> More accurate but slower
         var PARTS_REGEXP = /[\[./]([\w )]+)/g;
-
-
-        // ****************************************************************************
-        // Private methods
-        //
-
-        function resolveExpression(expressionsArray, scope, index, deferred) {
-
-            index = index || 0;
-            deferred = deferred || $q.defer();
-
-            var expression = expressionsArray[index++];
-
-            if (expression === void 0) {
-
-                deferred.resolve();
-                return deferred.promise;
-            }
-
-
-            // Extract the expression type.
-            var expressionType = expression.substring(0, expression.indexOf(/\W/.exec(expression)));
-            var expressionPromise;
-
-            switch (expressionType) {
-
-                case 'param':
-                    var paramName = getExpressionParts(expression)[0];
-                    expressionPromise = utils.getQueryStringParamByName(paramName);
-                    break;
-
-                case 'item':
-                    expressionPromise = resolveItemExpression(expression, scope);
-                    break;
-
-                case 'currentUser':
-                    expressionPromise = resolveCurrentUserExpression(expression);
-                    break;
-
-                case 'fn':
-                    var functionExpression = /\W(.*)/.exec(expression)[1];
-                    expressionPromise = resolveFunctionExpression(functionExpression, scope);
-                    break;
-            }
-
-
-            // Resolve/Reject the current expression promise
-            $q.when(expressionPromise).then(function(result) {
-
-                // Sets the resolved value for the current expression
-                expressionsArray[index - 1] = result;
-
-                // Resolve next expression
-                resolveExpression(expressionsArray, scope, index, deferred);
-
-            }, function(result) {
-
-                // Even with a promise rejection, sets the result in the current expression
-                expressionsArray[index - 1] = result;
-                
-                // Resolve next expression
-                resolveExpression(expressionsArray, scope, index, deferred);
-
-            });
-
-
-            return deferred.promise;
-        }
-
-
 
         function getExpressionParts(text) {
 
@@ -1571,117 +1605,700 @@ angular.module('ngSharePoint').service('SPExpressionResolver',
             return matches;
         }
 
+        function createExpressionValue(scope, name, value) {
 
+            if (scope.expressions !== void 0) {
 
-        function resolveItemExpression(expression, scope) {
+                var extendedExpression = {
+                    currentUser: {
+                    }
+                };
+                if (angular.isArray(name)) {
 
-            var queryParts = getExpressionParts(expression);
+                    var valueObject = value;
 
-            if (queryParts.length == 1) {
+                    for(var r = name.length - 1; r > 0; r--) {
 
-                return scope.item[queryParts[0]];
+                        var childValue = valueObject;
+                        valueObject = {};
+                        valueObject[name[r]] = childValue;
 
-            } else {
+                    }
 
-                return scope.item.list.getItemQueryById(scope.item.Id, queryParts.join('/')).then(function(data) {
+                    extendedExpression.currentUser[name[0]] = valueObject;
 
-                    return data[queryParts[queryParts.length - 1]];
-            
-                }, function() {
+                } else {
+                    extendedExpression.currentUser[name] = value;
+                }
 
-                    return undefined;
-                });
+                scope.expressions = utils.deepExtend(extendedExpression, scope.expressions);
             }
-            
+
         }
 
+        return {
+
+            resolve: function(expression, scope) {
+
+                return SharePoint.getCurrentWeb().then(function(web) {
+                
+                    return web.getList('UserInfoList').then(function(list) {
+
+                        var queryParts = getExpressionParts(expression);
+
+                        return list.getItemProperty(_spPageContextInfo.userId, queryParts.join('/')).then(function(data) {
+
+                            var value = data[queryParts[queryParts.length - 1]];
+                            createExpressionValue(scope, queryParts, value);
+                            return 'expressions.currentUser.' + queryParts.join('.');
+
+                        }, function() {
+
+                            return 'expressions.currentUser.' + queryParts.join('.');
+                        });
+                    });
+                });
+            }
+
+        };
+
+    }
+]);
 
 
-        function resolveCurrentUserExpression(expression) {
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolveritem
+ *
+ * @description
+ * SPExpressionResolverItem provides functionality to solve item expressions.
+ * 
+ */
 
-            return SharePoint.getCurrentWeb().then(function(web) {
-            
-                return web.getList('UserInfoList').then(function(list) {
+angular.module('ngSharePoint').factory('SPExpressionResolveritem', 
 
-                    var queryParts = getExpressionParts(expression);
+    [
 
-                    return list.getItemQueryById(_spPageContextInfo.userId, queryParts.join('/')).then(function(data) {
+    function SPExpressionResolverItem_Factory() {
+
+        'use strict';
+
+        var PARTS_REGEXP = /[\[./]([\w )]+)/g;
+
+        function getExpressionParts(text) {
+
+            var matches = [];
+            var match;
+
+            while ((match = PARTS_REGEXP.exec(text))) {
+
+                match.shift();
+                matches.push(match.join(''));
+            }
+
+            return matches;
+        }
+
+        function createExpressionValue(scope, name, value) {
+
+            if (scope.expressions !== void 0) {
+
+                var extendedExpression = {
+                    item: {
+                    }
+                };
+                if (angular.isArray(name)) {
+
+                    var valueObject = value;
+
+                    for(var r = name.length - 1; r > 0; r--) {
+
+                        var childValue = valueObject;
+                        valueObject = {};
+                        valueObject[name[r]] = childValue;
+
+                    }
+
+                    extendedExpression.item[name[0]] = valueObject;
+
+                } else {
+                    extendedExpression.item[name] = value;
+                }
+
+                scope.expressions = utils.deepExtend(extendedExpression, scope.expressions);
+            }
+
+        }
+
+        return {
+
+            resolve: function(expression, scope) {
+
+                var queryParts = getExpressionParts(expression);
+
+                if (queryParts.length == 1) {
+
+                    var value = scope.item[queryParts[0]];
+                    createExpressionValue(scope, queryParts[0], value);
+                    return 'expressions.item.' + queryParts[0];
+
+                } else {
+
+                    return scope.item.list.getItemProperty(scope.item.Id, queryParts.join('/')).then(function(data) {
+
+                        var value = data[queryParts[queryParts.length - 1]];
+                        createExpressionValue(scope, queryParts, value);
+                        return 'expressions.item.' + queryParts.join('.');
+                
+                    }, function() {
+
+                        return 'expressions.item.' + queryParts.join('.');
+                    });
+                }
+            }
+
+        };
+
+    }
+]);
+
+
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolverlist
+ *
+ * @description
+ * SPExpressionResolverlist provides functionality to solve list expressions.
+ * 
+ */
+
+angular.module('ngSharePoint').factory('SPExpressionResolverlist', 
+
+    [
+
+    function SPExpressionResolverList_Factory() {
+
+        'use strict';
+
+        var PARTS_REGEXP = /[\[./]([\w )]+)/g;
+
+        function getExpressionParts(text) {
+
+            var matches = [];
+            var match;
+
+            while ((match = PARTS_REGEXP.exec(text))) {
+
+                match.shift();
+                matches.push(match.join(''));
+            }
+
+            return matches;
+        }
+
+        function createExpressionValue(scope, name, value) {
+
+            if (scope.expressions !== void 0) {
+
+                var extendedExpression = {
+                    list: {
+                    }
+                };
+                if (angular.isArray(name)) {
+
+                    var valueObject = value;
+
+                    for(var r = name.length - 1; r > 0; r--) {
+
+                        var childValue = valueObject;
+                        valueObject = {};
+                        valueObject[name[r]] = childValue;
+
+                    }
+
+                    extendedExpression.list[name[0]] = valueObject;
+
+                } else {
+                    extendedExpression.list[name] = value;
+                }
+
+                scope.expressions = utils.deepExtend(extendedExpression, scope.expressions);
+            }
+
+        }
+
+        return {
+
+            resolve: function(expression, scope) {
+
+                var queryParts = getExpressionParts(expression);
+
+                return scope.item.list.getProperties().then(function(properties) {
+
+                    var value = properties[queryParts[0]];
+                    createExpressionValue(scope, queryParts[0], value);
+                    return 'expressions.list.' + queryParts[0];
+                });
+            }
+
+        };
+
+    }
+]);
+
+
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolverparam
+ *
+ * @description
+ * SPExpressionResolverparam provides functionality to solve param expressions.
+ * 
+ */
+
+angular.module('ngSharePoint').factory('SPExpressionResolverparam', 
+
+    [
+
+    function SPExpressionResolverParam_Factory() {
+
+        'use strict';
+
+        var PARTS_REGEXP = /[\[./]([\w )]+)/g;
+
+        function getExpressionParts(text) {
+
+            var matches = [];
+            var match;
+
+            while ((match = PARTS_REGEXP.exec(text))) {
+
+                match.shift();
+                matches.push(match.join(''));
+            }
+
+            return matches;
+        }
+
+        return {
+
+            resolve: function(expression, scope) {
+
+                var paramName = getExpressionParts(expression)[0];
+                var value = utils.getQueryStringParamByName(paramName);
+
+                if (scope.expressions !== void 0) {
+
+                    var extendedExpression = {
+                        param: {
+                        }
+                    };
+                    extendedExpression.param[paramName] = value;
+
+                    scope.expressions = utils.deepExtend(extendedExpression, scope.expressions);
+                }
+                return 'expressions.param.' + paramName;
+            }
+
+        };
+
+    }
+]);
+
+
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolverweb
+ *
+ * @description
+ * SPExpressionResolverweb provides functionality to solve web expressions.
+ * 
+ */
+
+angular.module('ngSharePoint').factory('SPExpressionResolverweb', 
+
+    [
+
+    function SPExpressionResolverWeb_Factory() {
+
+        'use strict';
+
+        var PARTS_REGEXP = /[\[./]([\w )]+)/g;
+
+        function getExpressionParts(text) {
+
+            var matches = [];
+            var match;
+
+            while ((match = PARTS_REGEXP.exec(text))) {
+
+                match.shift();
+                matches.push(match.join(''));
+            }
+
+            return matches;
+        }
+
+        function createExpressionValue(scope, name, value) {
+
+            if (scope.expressions !== void 0) {
+
+                var extendedExpression = {
+                    web: {
+                    }
+                };
+                if (angular.isArray(name)) {
+
+                    var valueObject = value;
+
+                    for(var r = name.length - 1; r > 0; r--) {
+
+                        var childValue = valueObject;
+                        valueObject = {};
+                        valueObject[name[r]] = childValue;
+
+                    }
+
+                    extendedExpression.web[name[0]] = valueObject;
+
+                } else {
+                    extendedExpression.web[name] = value;
+                }
+
+                scope.expressions = utils.deepExtend(extendedExpression, scope.expressions);
+            }
+
+        }
+
+        return {
+
+            resolve: function(expression, scope) {
+
+                var queryParts = getExpressionParts(expression);
+
+                return scope.item.list.web.getProperties().then(function(properties) {
+
+                    var value = properties[queryParts[0]];
+                    createExpressionValue(scope, queryParts[0], value);
+                    return 'expressions.web.' + queryParts[0];
+                });
+            }
+
+        };
+
+    }
+]);
+
+
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPExpressionResolver
+ *
+ * @description
+ * SPExpressionResolver provides functionality to solve expressions.
+ *
+ * The method creates new scope variable called `expressions` that contains variables with the name of the expression 
+ * provider used and their corresponding values. With this way, when AngularJS analizes the 
+ * expressions, its will be evaluated correctly.
+ *
+ * Valid expressions should match the next pattern:
+ * <pre>
+ * {provider.value}
+ * </pre>
+ * Where `provider` refers to the provider who will solve the expression, and `value` refers
+ * to the valuo to solve.
+ * 
+ * Actually the only providers that you can use are:
+ * - `item`: solves item related values
+ * - `currentUser`: solves current user related values (site user info list)
+ * - `param`: solves page parameters
+ * - `web`: solves web properties
+ * - `list`: solves list properties
+ * - `userProfile`: (coming soon)
+ *
+ * Expression, also, can be composed by complex values like:
+ * <pre>
+ * {provider.value1.value2....valuen}
+ * </pre>
+ * This only apply to `currentUser` or `item` values.
+ *
+ * @example
+ * Example of expressions:
+ * <pre>
+ * {item.Status}=='Closed'
+ * </pre>
+ * <pre>
+ * {currentUser.JobTitle}
+ * </pre>
+ * This expression creates a new variable called `currentUser` with the next composition:
+ * <pre>
+ * scope.expressions = {
+ *      currentUser: {
+ *           JobTitle: 'value' 
+ *      }
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {item.Department.Manager.Email}
+ * </pre>
+ * Refers to the manager's email of the department where the item is referenced.
+ * This expressions creates the next object composition:
+ * <pre>
+ * scope.expressions = {
+ *      item: {
+ *          Department: {
+ *              Manager: {
+ *                  Email: 'useremail@company.com'
+ *              }
+ *          }
+ *      }
+ * }
+ * </pre>
+ *
+ * <pre>
+ * {currentUser.Area.Address}
+ * </pre>
+ * 
+ */
+
+angular.module('ngSharePoint').provider('SPExpressionResolver', 
+
+    [
+
+    function SPExpressionResolver_Provider() {
+
+        'use strict';
+
+        var CustomExpresionProviders = {
+            /*
+            'currentUser': 'SPExpressionResolvercurrentUser',
+            'currentUser': 'otherCurrentUserProvider'
+            */
+        };
+
+        var SPExpressionResolver = function($injector, $q, SharePoint, $parse) {
+
+            //var OLD_EXPRESSION_REGEXP = /{\b([\w+( |.)]*|[\[\w+\]]*)}/g;
+            var EXPRESSION_REGEXP = /{(\w+\W*[\w\s./\[\]\(\)]+)}(?!})/g; //-> Faster but less accurate
+            //var EXPRESSION_REGEXP = /{(\w+?(?:[.\/\[](?! )[\w \]]*?)+?)}(?!})/g; //-> More accurate but slower
+            var PARTS_REGEXP = /[\[./]([\w )]+)/g;
+
+
+            // ****************************************************************************
+            // Private methods
+            //
+
+            function resolveExpression(expressionsArray, scope, index, deferred) {
+
+                index = index || 0;
+                deferred = deferred || $q.defer();
+
+                var expression = expressionsArray[index++];
+
+                if (expression === void 0) {
+
+                    deferred.resolve();
+                    return deferred.promise;
+                }
+
+
+                // Extract the expression type.
+                var expressionType = expression.substring(0, expression.indexOf(/\W/.exec(expression)));
+
+                var expressionProviderName = 'SPExpressionResolver' + expressionType;
+                if (CustomExpresionProviders[expressionType] !== void 0) {
+                    expressionProviderName = CustomExpresionProviders[expressionType];
+                }
+
+                var service = $injector.get(expressionProviderName);
+                var expressionPromise = service.resolve(expression, scope);
+
+                // Resolve/Reject the current expression promise
+                $q.when(expressionPromise).then(function(result) {
+
+                    // Sets the resolved value for the current expression
+                    expressionsArray[index - 1] = result;
+
+                    // Resolve next expression
+                    resolveExpression(expressionsArray, scope, index, deferred);
+
+                }, function(result) {
+
+                    // Even with a promise rejection, sets the result in the current expression
+                    expressionsArray[index - 1] = result;
+                    
+                    // Resolve next expression
+                    resolveExpression(expressionsArray, scope, index, deferred);
+
+                });
+
+
+                return deferred.promise;
+            }
+
+
+
+            function getExpressionParts(text) {
+
+                var matches = [];
+                var match;
+
+                while ((match = PARTS_REGEXP.exec(text))) {
+
+                    match.shift();
+                    matches.push(match.join(''));
+                }
+
+                return matches;
+            }
+
+
+
+            function resolveItemExpression(expression, scope) {
+
+                var queryParts = getExpressionParts(expression);
+
+                if (queryParts.length == 1) {
+
+                    return scope.item[queryParts[0]];
+
+                } else {
+
+                    return scope.item.list.getItemProperty(scope.item.Id, queryParts.join('/')).then(function(data) {
 
                         return data[queryParts[queryParts.length - 1]];
-
+                
                     }, function() {
 
                         return undefined;
                     });
-                });
-            });
-        }
-
-
-
-        function resolveFunctionExpression(functionExpression, scope) {
-
-            return scope.$eval($parse(functionExpression));
-
-        }
-
-
-
-        // ****************************************************************************
-        // Public methods (Service API)
-        //
-
-        this.resolve = function(text, scope) {
-
-            var deferred = $q.defer();
-            var expressionsArray = [];
-
-            if (angular.isString(text)) {
+                }
                 
-                // Use 'replace' function to extract the expressions and replace them for {e:1} to {e:n}.
-                text = text.replace(EXPRESSION_REGEXP, function(match, p1, offset, originalText) {
+            }
 
-                    // Check if the expression is already added.
-                    // This way resolves the expression only once and replaces it in all places 
-                    // where appears in the text.
-                    var pos = expressionsArray.indexOf(p1);
 
-                    if (pos == -1) {
-                        expressionsArray.push(p1);
-                        pos = expressionsArray.length - 1;
-                    }
 
-                    return '{e:' + pos + '}';
+            function resolveCurrentUserExpression(expression) {
 
+                return SharePoint.getCurrentWeb().then(function(web) {
+                
+                    return web.getList('UserInfoList').then(function(list) {
+
+                        var queryParts = getExpressionParts(expression);
+
+                        return list.getItemProperty(_spPageContextInfo.userId, queryParts.join('/')).then(function(data) {
+
+                            return data[queryParts[queryParts.length - 1]];
+
+                        }, function() {
+
+                            return undefined;
+                        });
+                    });
                 });
+            }
+
+
+
+            function resolveFunctionExpression(functionExpression, scope) {
+
+                return scope.$eval($parse(functionExpression));
 
             }
 
-            // Resolve the 'expressionsArray' with promises
-            resolveExpression(expressionsArray, scope).then(function() {
 
-                // Replace {e:1} to {e:n} in the 'text' with the corresponding resolved expressions values.
-                for (var i = 0; i < expressionsArray.length; i++) {
-                    text = text.replace(new RegExp('{e:' + i + '}', 'g'), expressionsArray[i]);
+
+            // ****************************************************************************
+            // Public methods (Service API)
+            //
+
+            /**
+             * @ngdoc function
+             * @name ngSharePoint.SPExpressionResolver#resolve
+             * @methodOf ngSharePoint.SPExpressionResolver
+             * 
+             * @description
+             * This method solves all expressions contained within the text received as parameter.
+             *
+             * @param {string} Text expression to solve
+             * @param {object} scope with the context where `expressions` values will be placed.
+             * @returns {promise} Promise with the solved expressions
+             * 
+             * @example
+             * <pre>
+             * var textToEvaluate = '{currentUser.Id}=={item.Author.Id} and {params.Close}=="Yes"';
+             * SPExpressionResolver.resolve(textToEvaluate, $scope).then(function(sentence) {
+             *
+             *      // At this point, expressions are solved and scope variables created
+             *      // We can evaluate the sentence
+             *
+             *      if ($scope.$eval(sentence)) {
+             *
+             *          // The current user is the author of the current item and exists
+             *          // a page param equals to `Yes`
+             *      }
+             *  });
+             * </pre>
+             */
+            this.resolve = function(text, scope) {
+
+                var deferred = $q.defer();
+                var expressionsArray = [];
+
+                if (angular.isString(text)) {
+                    
+                    // Use 'replace' function to extract the expressions and replace them for {e:1} to {e:n}.
+                    text = text.replace(EXPRESSION_REGEXP, function(match, p1, offset, originalText) {
+
+                        // Check if the expression is already added.
+                        // This way resolves the expression only once and replaces it in all places 
+                        // where appears in the text.
+                        var pos = expressionsArray.indexOf(p1);
+
+                        if (pos == -1) {
+                            expressionsArray.push(p1);
+                            pos = expressionsArray.length - 1;
+                        }
+
+                        return '{e:' + pos + '}';
+
+                    });
+
                 }
 
-                // Resolve the main promise
-                deferred.resolve(text);
+                // Resolve the 'expressionsArray' with promises
+                resolveExpression(expressionsArray, scope).then(function() {
 
-            });
+                    // Replace {e:1} to {e:n} in the 'text' with the corresponding resolved expressions values.
+                    for (var i = 0; i < expressionsArray.length; i++) {
+                        text = text.replace(new RegExp('{e:' + i + '}', 'g'), expressionsArray[i]);
+                    }
+
+                    // Resolve the main promise
+                    deferred.resolve(text);
+
+                });
 
 
-            return deferred.promise;
+                return deferred.promise;
 
-        }; // resolve method
+            }; // resolve method
 
-    } // SPExpressionResolver factory
+        };
+
+
+        this.$get = function($injector, $q, SharePoint, $parse) {
+            return new SPExpressionResolver($injector, $q, SharePoint, $parse);
+        };
+
+    }
 
 ]);
 
 /*
     SPFieldDirective - Service
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -1695,7 +2312,7 @@ angular.module('ngSharePoint').service('SPExpressionResolver',
 //  SPFieldDirective
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').service('SPFieldDirective', 
+angular.module('ngSharePoint').service('SPFieldDirective',
 
     ['$compile', '$http', '$templateCache', '$q', 'SPUtils',
 
@@ -1743,7 +2360,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *
          * The 'this' word in this function is the directive object defined in the
          * 'spfield-xxx' directive. See the definition of the 'directive object' below.
-         * 
+         *
          * Example of use in a directive 'post-link' function:
          *
          *      // Define the 'directive' object
@@ -1753,7 +2370,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *          replaceAll: false,
          *          init: function() {
          *              $scope.SomeText = 'My directive';
-         *          
+         *
          *              // Call some private function
          *              MyPrivateFunction();
          *          }
@@ -1765,21 +2382,21 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *      // (Becomes the 'this' word within the 'baseLinkFn' function).
          *
          *      SPFieldDirective.baseLinkFn.apply(directiveObj, arguments);
-         *      
+         *
          *
          * 'directiveObj' definition:
          *
          *        Required properties:
          *        --------------------
          *
-         *              fieldTypeName: The type name of the directive to load the 
+         *              fieldTypeName: The type name of the directive to load the
          *                             correct directive template.
          *
-         *              
+         *
          *        Optional properties/functions:
          *        ------------------------------
          *
-         *              replaceAll: If set to true, the 'renderField' function will replace 
+         *              replaceAll: If set to true, the 'renderField' function will replace
          *                          the entire element instead its contents.
          *
          *              displayTemplateUrl: Custom field template for display rendering.
@@ -1788,24 +2405,24 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *
          *              init (function): An initialization function for the directive.
          *
-         *              parserFn (function): If defined, add this parser function to the 
+         *              parserFn (function): If defined, add this parser function to the
          *              (view to model)      model controller '$parsers' array.
-         *                                   Used to sanitize/convert the value as well as 
+         *                                   Used to sanitize/convert the value as well as
          *                                   validation.
-         *                                   Working examples are in the 'spfieldMultichoice' 
+         *                                   Working examples are in the 'spfieldMultichoice'
          *                                   or 'spfieldLookupmulti' directives.
          *
-         *              formatterFn (function): If defined, add this formatter function to the 
+         *              formatterFn (function): If defined, add this formatter function to the
          *              (model to view)         model controller '$formatters' array.
-         *                                      Used to format/convert values for display in the 
+         *                                      Used to format/convert values for display in the
          *                                      control and validation.
          *
-         *              watchModeFn (function): If defined, replace the default behavior in the 
+         *              watchModeFn (function): If defined, replace the default behavior in the
          *                                      'Watch for form mode changes' function.
-         *                                      The default behavior is to call the 'renderField' 
+         *                                      The default behavior is to call the 'renderField'
          *                                      function.
-         *                          
-         *              watchValueFn (function): If defined, applies it after the default behavior 
+         *
+         *              watchValueFn (function): If defined, applies it after the default behavior
          *                                       in the 'Watch for field value changes' function.
          *                                       Deprecated: new spfield-* don't have attribute:
          *                                          value: '=ngModel'
@@ -1816,7 +2433,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
          *                                       set's the scope.value variable with the new value
          *                                       (modelCtrl.$viewValue)
 
-         *              onValidateFn (function): If defined, applies it after the default behavior 
+         *              onValidateFn (function): If defined, applies it after the default behavior
          *                                       in the '$scope.$on('validate', ...)' function.
          *
          *              postRenderFn (function): If defined, will be executed after the default
@@ -1841,10 +2458,6 @@ angular.module('ngSharePoint').service('SPFieldDirective',
             $scope.$on('$destroy', function() {
                 $scope.formCtrl.unregisterField(directive);
             });
-
-
-            // Apply the directive initializacion if specified.
-            if (angular.isFunction(directive.init)) directive.init();
 
 
             // Apply the directive parser function if specified.
@@ -1898,9 +2511,9 @@ angular.module('ngSharePoint').service('SPFieldDirective',
                     // extendedTemplate: {
                     //     html: A string that contains the HTML.
                     //     url: Url to the template that contains the HTML. This overwrites 'html' property
-                    //     replaceOnDisplay: true or false that indicates if the template will replace the 
+                    //     replaceOnDisplay: true or false that indicates if the template will replace the
                     //                       default field template on 'display' mode.
-                    //     replaceOnEdit: true or false that indicates if the template will replace the default 
+                    //     replaceOnEdit: true or false that indicates if the template will replace the default
                     //                    field template on 'edit' mode.
                     //     replace: true or false that indicates if the template will replace the default field
                     //              template on both form modes (display and edit).
@@ -1915,12 +2528,12 @@ angular.module('ngSharePoint').service('SPFieldDirective',
                     //         html: String
                     //         url: String
                     //         replace: Boolean
-                    //     }   
+                    //     }
                     // }
                     //
 
 
-                    if (angular.isDefined($scope.schema.extendedTemplate)) {
+                    if (angular.isDefined($scope.schema) && angular.isDefined($scope.schema.extendedTemplate)) {
 
                         var finalHtml = html;
                         var templateEx = $scope.schema.extendedTemplate;
@@ -1933,7 +2546,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
                         }
 
                         var replace = (
-                            ($scope.currentMode === 'display' && templateEx.replaceOnDisplay === true) || 
+                            ($scope.currentMode === 'display' && templateEx.replaceOnDisplay === true) ||
                             ($scope.currentMode === 'edit' && templateEx.replaceOnEdit === true) ||
                             templateEx.replace === true
                         );
@@ -1948,7 +2561,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
                             });
 
                         } else if (angular.isDefined(templateEx.html)) {
-                            
+
                             finalHtml = replace ? templateEx.html : html + templateEx.html;
                             deferred.resolve(finalHtml);
 
@@ -1966,7 +2579,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
                     }
 
                 });
-                
+
 
                 return deferred.promise;
 
@@ -1981,7 +2594,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
             directive.renderField = function() {
 
                 directive.getFieldTemplate().then(function(html) {
-                        
+
                     directive.setElementHTML(html);
                     if (angular.isFunction(directive.postRenderFn)) directive.postRenderFn.apply(directive, arguments);
 
@@ -2026,7 +2639,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
                     $q.when(directive.onValidateFn.apply(directive, arguments)).then(function() {
 
-                        if ($scope.schema.onValidate !== undefined) {
+                        if ($scope.schema !== undefined && $scope.schema.onValidate !== undefined) {
 
                             $q.when(SPUtils.callFunctionWithParams($scope.schema.onValidate, $scope)).then(function(result) {
 
@@ -2041,7 +2654,7 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
                 } else {
 
-                    if ($scope.schema.onValidate !== undefined) {
+                    if ($scope.schema !== undefined && $scope.schema.onValidate !== undefined) {
 
                         $q.when(SPUtils.callFunctionWithParams($scope.schema.onValidate, $scope)).then(function(result) {
 
@@ -2059,42 +2672,6 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
 
             // ****************************************************************************
-            // Watch for form mode changes.
-            //
-            $scope.$watch(function() {
-
-                return $scope.mode || $scope.formCtrl.getFormMode();
-
-            }, function(newValue, oldValue) {
-
-                // Sets field current mode
-                $scope.currentMode = newValue;
-                
-                // Renders the field or apply the specific field type function
-                if (angular.isFunction(directive.watchModeFn)) {
-
-                    directive.watchModeFn.apply(directive, arguments);
-
-                } else {
-
-                    directive.renderField();
-                }
-            });
-
-
-
-            // ****************************************************************************
-            // Watch for field value changes.
-            //
-            $scope.$watch('value', function(newValue, oldValue) {
-
-                defaultWatchValueFn.apply($scope, arguments);
-                if (angular.isFunction(directive.watchValueFn)) directive.watchValueFn.apply(directive, arguments);
-
-            }, true);
-
-
-            // ****************************************************************************
             // New model value ... render
             //
             $scope.modelCtrl.$render = function() {
@@ -2108,6 +2685,48 @@ angular.module('ngSharePoint').service('SPFieldDirective',
             };
 
 
+            // Apply the directive initializacion if specified.
+            var init = true;
+            if (angular.isFunction(directive.init)) init = directive.init();
+
+            $q.when(init).then(function() {
+
+                // ****************************************************************************
+                // Watch for form mode changes.
+                //
+                $scope.$watch(function() {
+
+                    return $scope.mode || $scope.formCtrl.getFormMode();
+
+                }, function(newValue, oldValue) {
+
+                    // Sets field current mode
+                    $scope.currentMode = newValue;
+
+                    // Renders the field or apply the specific field type function
+                    if (angular.isFunction(directive.watchModeFn)) {
+
+                        directive.watchModeFn.apply(directive, arguments);
+
+                    } else {
+
+                        directive.renderField();
+                    }
+                });
+
+
+
+                // ****************************************************************************
+                // Watch for field value changes.
+                //
+                $scope.$watch('value', function(newValue, oldValue) {
+
+                    defaultWatchValueFn.apply($scope, arguments);
+                    if (angular.isFunction(directive.watchValueFn)) directive.watchValueFn.apply(directive, arguments);
+
+                }, true);
+
+            });
 
 
 
@@ -2118,21 +2737,18 @@ angular.module('ngSharePoint').service('SPFieldDirective',
 
 ]);
 
-/*
-	SPFile - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPFile
+ *
+ * @description
+ * Provides functionality to manage SharePoint files.
+ *
+ * *At the moment, not all methods for manage file objects are implemented in ngSharePoint*
+ *
+ * *Documentation is pending*
+ */
 
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//	SPFile
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPFile', 
 
@@ -2143,13 +2759,26 @@ angular.module('ngSharePoint').factory('SPFile',
 		'use strict';
 
 
-		// ****************************************************************************
-		// SPFile constructor
-		//
-		// @web: SPWeb instance that contains the file in SharePoint.
-		// @path: Name the file you want to instantiate.
-		//
-		var SPFileObj = function(web, path, fileProperties) {
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFile#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPFile
+         *
+         * @description
+         * Instantiates a new `SPFile` object for a specific SharePoint file in the server. It's possible
+         * to specify their properties.
+         *
+         * By default, in document and picture libraries, when you call {@link ngSharePoint.SPList#getListItems getListItems} or 
+         * {@link ngSharePoint.SPList#getItemById getItemById}, by default a ´item.File´ property are created and contains
+         * file information.
+         *
+         * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object where the file is stored.
+         * @param {string} path The server relative path of the file.
+         * @param {object} fileProperties Properties to initialize the object
+         *
+         */
+ 		var SPFileObj = function(web, path, fileProperties) {
 
 			if (web === void 0) {
 				throw '@web parameter not specified in SPFile constructor.';
@@ -2282,7 +2911,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			} else {
 
-				this.getProperties({ $expand: 'ListItemAllFields, ListItemAllFields/ParentList'}).then(function() {
+				this.getProperties({ $expand: 'ListItemAllFields,ListItemAllFields/ParentList'}).then(function() {
 
 					var list = SPObjectProvider.getSPList(self.web, self.ListItemAllFields.ParentList.Id, self.ListItemAllFields.ParentList);
 					self.List = list;
@@ -2317,7 +2946,7 @@ angular.module('ngSharePoint').factory('SPFile',
 
 				if (this.List !== void 0) {
 
-					this.getProperties({ $expand: 'ListItemAllFields, ListItemAllFields/ParentList'}).then(function() {
+					this.getProperties({ $expand: 'ListItemAllFields,ListItemAllFields/ParentList'}).then(function() {
 
 						self.ListItem = SPObjectProvider.getSPListItem(self.List, self.ListItemAllFields);
 						self.updateAPIUrlById(self.List, self.ListItem.Id);
@@ -2474,27 +3103,34 @@ angular.module('ngSharePoint').factory('SPFile',
 				'Accept': 'application/json; odata=verbose'
 			};
 
+			var requestDigest = document.getElementById('__REQUESTDIGEST');
+			if (requestDigest !== null) {
+				headers['X-RequestDigest'] = requestDigest.value;
+			}
+			
 			var url = self.apiUrl + '/moveto(newurl=\'' + pathToMove + '/' + self.Name + '\',flags=1)';
 
-			var executor = new SP.RequestExecutor(self.web.url);
+			$http({
 
-			executor.executeAsync({
-				url: url,
 				method: 'POST',
+				url: url,
+				headers: headers
 
-				success: function () {
-					def.resolve();
-				},
+			}).then(function() {
 
-				error: function (data, errorCode, errorMessage) {
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
+				def.resolve();
 
-					def.reject(err);
-				}
+			}, function(error) {
+
+				var err = utils.parseError({
+					data: error.data.error,
+					errorCode: error.data.error.code,
+					errorMessage: error.data.error.message
+				});
+				err.data.body = err.data.message.value;
+				err.message = err.data.code;
+
+				def.reject(err);
 			});
 
 			return def.promise;
@@ -2526,26 +3162,29 @@ angular.module('ngSharePoint').factory('SPFile',
 
 			var url = self.apiUrl + '/copyto(strnewurl=\'' + pathToCopy + '/' + self.Name + '\',boverwrite=true)';
 
-			var executor = new SP.RequestExecutor(self.web.url);
+			$http({
 
-			executor.executeAsync({
-				url: url,
 				method: 'POST',
+				url: url,
+				headers: headers
 
-				success: function () {
-					def.resolve();
-				},
+			}).then(function() {
 
-				error: function (data, errorCode, errorMessage) {
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
+				def.resolve();
 
-					def.reject(err);
-				}
+			}, function(error) {
+
+				var err = utils.parseError({
+					data: error.data.error,
+					errorCode: error.data.error.code,
+					errorMessage: error.data.error.message
+				});
+				err.data.body = err.data.message.value;
+				err.message = err.data.code;
+
+				def.reject(err);
 			});
+
 
 			return def.promise;
 		}; // copyFile
@@ -2576,7 +3215,7 @@ angular.module('ngSharePoint').factory('SPFile',
 				success: function() {
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.resolve();
 					});
@@ -2592,7 +3231,7 @@ angular.module('ngSharePoint').factory('SPFile',
 					});
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.reject(err);
 					});
@@ -2628,7 +3267,7 @@ angular.module('ngSharePoint').factory('SPFile',
 				success: function() {
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						delete self.CheckedOutByUser;
 						def.resolve();
@@ -2645,7 +3284,7 @@ angular.module('ngSharePoint').factory('SPFile',
 					});
 
 					self.getProperties({
-						$expand: 'CheckedOutByUser, ModifiedBy'
+						$expand: 'CheckedOutByUser,ModifiedBy'
 					}).then(function() {
 						def.reject(err);
 					});
@@ -2730,21 +3369,16 @@ angular.module('ngSharePoint').factory('SPFile',
 	}
 ]);
 
-/*
-	SPFolder - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
-
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//	SPFolder
-///////////////////////////////////////
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPFolder
+ *
+ * @description
+ * Provides functionality to manage SharePoint folders.
+ *
+ * *At the moment, not all methods for managing folder objects are implemented in ngSharePoint*
+ *
+ */
 
 angular.module('ngSharePoint').factory('SPFolder', 
 
@@ -2755,12 +3389,29 @@ angular.module('ngSharePoint').factory('SPFolder',
 		'use strict';
 
 
-		// ****************************************************************************
-		// SPFolder constructor
-		//
-		// @web: SPWeb instance that contains the folder in SharePoint.
-		// @path: Name the folder you want to instantiate.
-		//
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Instantiates a new `SPFolder` object that points to a specific SharePoint folder. With a
+         * folder instance it is possible to access their properties and get files and subfolders.
+         *
+         * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object where the folder is located
+         * @param {string} path Server relative path to the folder.
+         * @param {object} folderProperties Properties to initialize the object
+         *
+         * @example
+         * <pre>
+         * var folder = new SPFolder(web, '/Shared documents');
+         * // ... do something with the 'folder' object
+         * folder.getFiles().then(...);
+         * </pre>
+         *
+         */
 		var SPFolderObj = function(web, path, folderProperties) {
 
 			if (web === void 0) {
@@ -2790,13 +3441,45 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// getProperties
-		//
-		// Gets folder properties and attach it to 'this' object.
-		//
-		// @returns: Promise with the result of the REST query.
-		//
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#getProperties
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Makes a call to the SharePoint server and collects all folder properties.
+         * The current object is extended with the recovered properties.
+         *
+         * For a complete list of folder properties go to Microsoft
+         * SharePoint {@link https://msdn.microsoft.com/EN-US/library/office/dn450841.aspx#bk_FolderProperties folder api reference}
+         *
+         * SharePoint REST api only returns certain folder properties that have primary values. Properties with complex structures
+         * like `ParentFolder` or `Files` are not returned directly by the api and it is necessary to extend the query
+         * to retrieve their values. It is possible to accomplish this with the `query` param.
+         *
+         * @param {object=} query This parameter specifies which folder properties will be extended and retrieved from the server.
+         * @returns {promise} promise with an object with the folder object
+         *
+         * @example
+         * This example shows how to retrieve folder properties:
+         * <pre>
+         *
+         *   SharePoint.getCurrentWeb(function(web) {
+         *
+         *     web.getFolder("/Images").then(function(folder) {
+         *
+         *        folder.getProperties().then(function() {
+         *
+         *            // at this point we have all folder properties
+         *            window.location = folder.WelcomePage;
+         *        });
+         *     });
+         *
+         *   });
+         * </pre>
+         *
+         */
 		SPFolderObj.prototype.getProperties = function(query) {
 
 			var self = this;
@@ -2839,13 +3522,34 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// getFiles
-		//
-		// Gets folder files
-		//
-		// @returns: Promise with the result of the REST query.
-		//
+
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPFolder#getFiles
+	     * @methodOf ngSharePoint.SPFolder
+	     *
+	     * @description
+		 * Gets the collection of all {@link ngSharePoint.SPFile files} contained in the folder.
+	     *
+         * @param {object=} query An object with all query options used to retrieve files.
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPFile SPFile} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(web) {
+		 *		var folder = new SPFolder(web, '/images');
+		 *		folder.getFiles().then(function(files) {
+		 *       
+		 *           angular.forEach(files, function(file) {
+	     *           
+	     *               console.log(file.Name + ' ' + file.Length);
+		 *           });
+		 *      });
+		 *
+		 *   });
+		 * </pre>
+		 */		
 		SPFolderObj.prototype.getFiles = function(query) {
 
 			var self = this;
@@ -2898,13 +3602,34 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// getFolders
-		//
-		// Gets folder files
-		//
-		// @returns: Promise with the result of the REST query.
-		//
+
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPFolder#getFolders
+	     * @methodOf ngSharePoint.SPFolder
+	     *
+	     * @description
+	     * Gets the collection of folders contained in the folder.
+	     *
+         * @param {object=} query An object with all query options used to retrieve folders.
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPFolder SPFolder} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(web) {
+		 *		var folder = new SPFolder(web, '/images');
+		 *		folder.getFolders().then(function(folders) {
+		 *       
+		 *           angular.forEach(folders, function(folder) {
+	     *           
+	     *               console.log(folder.Name + ' ' + folder.ItemCount);
+		 *           });
+		 *      });
+		 *
+		 *   });
+		 * </pre>
+		 */
 		SPFolderObj.prototype.getFolders = function(query) {
 
 			var self = this;
@@ -2958,13 +3683,19 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// getList
-		//
-		// Gets the list that contains the curruent folder
-		//
-		// @returns: Promise with the new SPFolder object.
-		//
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#getList
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Returns an SPList object corresponding with the list or document library that contains the folder.
+         * If the folder doesn't corresponds with a list or document library, this method throws an error.
+         *
+         * @returns {promise} promise with an {@link ngSharePoint.SPList SPList} object.
+         *
+         */
 		SPFolderObj.prototype.getList = function() {
 
 			var def = $q.defer();
@@ -2988,7 +3719,7 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 			} else {
 
-				this.getProperties({ $expand: 'ListItemAllFields, ListItemAllFields/ParentList'}).then(function() {
+				this.getProperties({ $expand: 'ListItemAllFields,ListItemAllFields/ParentList'}).then(function() {
 
 					var list = SPObjectProvider.getSPList(self.web, self.ListItemAllFields.ParentList.Id, self.ListItemAllFields.ParentList);
 					self.List = list;
@@ -3002,13 +3733,21 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// getFolderListItem
-		//
-		// Gets the list item object correspondig with the current folder
-		//
-		// @returns: Promise with the new SPFolder object.
-		//
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#getFolderListItem
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Gets the list item object corresponding with the current folder.
+         *
+         * If the folder isn't in a list or document library, then there isn't an item
+         * that corresponds with it and this method throws an error.
+         *
+         * @returns {promise} promise with an {@link ngSharePoint.SPListItem SPListItem} object.
+         *
+         */
 		SPFolderObj.prototype.getFolderListItem = function() {
 
 			var def = $q.defer();
@@ -3034,19 +3773,35 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// addFolder
-		//
-		// Create a new folder under the current folder
-		//
-		// @folderName: The name of the new folder
-		// @returns: Promise with the new SPFolder object.
-		//
+
+		/**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#addFolder
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Creates a new folder within the current folder.
+         *
+         * @param {string} folderName The name of the folder to be created.
+         * @returns {promise} promise with the new {@link ngSharePoint.SPFolder SPFolder} object.
+         *
+		 * @example
+		 * <pre>
+		 *
+		 *	var folder = new SPFolder(web, '/public-documents');
+		 *	folder.addFolder('manuals').then(function(manualsFolder) {
+		 *
+		 *		// . . . 
+		 *      
+		 *	});
+		 *
+		 * </pre>
+         */
 		SPFolderObj.prototype.addFolder = function(folderName) {
 
 			var self = this;
 			var def = $q.defer();
-			var folderPath = self.ServerRelativeUrl.rtrim('/') + '/' + folderName;
+			var folderPath = (self.ServerRelativeUrl || '').rtrim('/') + '/' + folderName;
 			var url = self.apiUrl + '/folders';
 
 			var headers = {
@@ -3103,80 +3858,96 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// addFile
-		//
-		// Uploads a new binary file to current folder
-		//
-		// @fileName: The name of the new file to upload
-		// @file: A file object to upload
-		// @returns: Promise with the new SPFolder object.
-		//
-		SPFolderObj.prototype.addFile = function(fileName, file) {
 
-			var self = this;
-			var def = $q.defer();
-			var folderPath = self.ServerRelativeUrl + '/' + fileName;
-			var url = self.apiUrl + '/files/add(url=\'' + fileName + '\',overwrite=true)';
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#addFile
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Uploads a new binary file to current folder.
+         *
+         * @param {string} fileName The name of the new file to upload.
+         * @param {stream} file A stream with the content of the file to be uploaded. The maximum size of a binary file that you can add by using this method is 2 GB.
+         * @param {boolean=} overwrite If a file with the same name exists on the server, this parameter
+         * indicates if the file will be overwritten
+         * @returns {promise} promise with the new {@link ngSharePoint.SPFile SPFile} object.
+         *
+         */
+        SPFolderObj.prototype.addFile = function(fileName, file, overwrite) {
 
-			var executor = new SP.RequestExecutor(self.web.url);
+            var self = this;
+            var def = $q.defer();
+            var folderPath = self.ServerRelativeUrl + '/' + fileName;
+            var url = self.apiUrl + '/files/add(url=\'' + fileName + '\',overwrite=' + (overwrite === false ? 'false' : 'true') + ')';
 
-			SPUtils.getFileBinary(file).then(function (binaryData) {
+            var executor = new SP.RequestExecutor(self.web.url);
 
-				var headers = {
-					'Accept': 'application/json; odata=verbose',
-					"content-type": "application/json;odata=verbose"
-				};
+            SPUtils.getFileBinary(file).then(function (binaryData) {
 
-				var requestDigest = document.getElementById('__REQUESTDIGEST');
-				if (requestDigest !== null) {
-					headers['X-RequestDigest'] = requestDigest.value;
-				}
+                var headers = {
+                    'Accept': 'application/json; odata=verbose',
+                    "content-type": "application/json;odata=verbose"
+                };
 
-				executor.executeAsync({
+                var requestDigest = document.getElementById('__REQUESTDIGEST');
+                if (requestDigest !== null) {
+                    headers['X-RequestDigest'] = requestDigest.value;
+                }
 
-					url: url,
-					method: 'POST',
-					headers: headers,
-					body: binaryData,
-					binaryStringRequestBody: true,
+                executor.executeAsync({
 
-					success: function(data) {
+                    url: url,
+                    method: 'POST',
+                    headers: headers,
+                    body: binaryData,
+                    binaryStringRequestBody: true,
 
-						var d = utils.parseSPResponse(data);
-						var newFile = SPObjectProvider.getSPFile(self.web, d.ServerRelativeUrl, d);
-						newFile.List = self.List;
+                    success: function(data) {
 
-						def.resolve(newFile);
-					},
+                        var d = utils.parseSPResponse(data);
+                        var newFile = SPObjectProvider.getSPFile(self.web, d.ServerRelativeUrl, d);
+                        newFile.List = self.List;
 
-					error: function(data, errorCode, errorMessage) {
+                        def.resolve(newFile);
+                    },
 
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
+                    error: function(data, errorCode, errorMessage) {
 
-						def.reject(err);
-					}
-				});
+                        var err = utils.parseError({
+                            data: data,
+                            errorCode: errorCode,
+                            errorMessage: errorMessage
+                        });
 
-			});
+                        def.reject(err);
+                    }
+                });
 
-			return def.promise;
+            });
 
-		};	// addFile
+            return def.promise;
+
+        };  // addFile
+        
 
 
-		// ******************************************
-		// rename
-		//
-		// Renames the current folder with the new name
-		//
-		// @folderName: The new name of the folder
-		// @returns: Promise with the result.
-		//
+
+		/**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#rename
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * Changes the name of the current folder.
+         *
+         * @param {string} newName The new name to be applied to the folder.
+         * @returns {promise} promise with the operation results.
+         *
+         * **Limitations**:
+         * This method uses JSOM to rename the folder. This means
+         * that this method can't be executed outside of the SharePoint page context.
+         */
 		SPFolderObj.prototype.rename = function(newName) {
 
 			var self = this;
@@ -3226,15 +3997,20 @@ angular.module('ngSharePoint').factory('SPFolder',
 
 
 
-		// ****************************************************************************
-		// removeFolder
-		//
-		// Delete the specified folder under the current folder
-		//
-		// @folderName: The name of the folder to remove
-		// @permanent: Indicates if the folder is recycled or removed permanently
-		// @returns: Promise with the new SPFolder object.
-		//
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPFolder#remove
+         * @methodOf ngSharePoint.SPFolder
+         *
+         * @description
+         * This method removes the folder from the server.
+         * 
+         * @param {string|object} folder Can be an SPFolder object or the name of the folder to be removed.
+         * @param {boolean=} permanent Indicates if the folder is recycled or removed permanently.
+         * @returns {promise} promise with the result of the REST query.
+         *
+         */
 		SPFolderObj.prototype.removeFolder = function(folder, permament) {
 
 			var self = this;
@@ -3295,37 +4071,54 @@ angular.module('ngSharePoint').factory('SPFolder',
 	}
 ]);
 
-/*
-	SPGroup - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPGroup
+ *
+ * @description
+ * SPGroup factory provides access to all SharePoint group properties and allows retrieval of users and 
+ * owner (group or user).
+ *
+ * *At the moment, not all SharePoint API methods for group objects are implemented in ngSharePoint*
+ *
+ */
 
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//	SPGroup
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPGroup', 
 
-	['$q', 'SPCache', 'SPUser', 
+	['$q', 'SPHttp', 'SPCache', 'SPObjectProvider', 
 
-	function SPGroup_Factory($q, SPCache, SPUser) {
+	function SPGroup_Factory($q, SPHttp, SPCache, SPObjectProvider) {
 
 		'use strict';
 
 
-		// ****************************************************************************
-		// SPGroup constructor
-		//
-		// @web: SPWeb instance that contains the group in SharePoint.
-		// @groupName: Name or id of the group you want to instantiate.
-		//
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPGroup#constructor
+		 * @constructor
+		 * @methodOf ngSharePoint.SPGroup
+		 * 
+		 * @description
+		 * Initializes a new SPGroup object that points to a specific SharePoint group and allows
+		 * retrieval of their properties and users
+		 * 
+		 * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object
+		 * @param {int|string} groupId|groupName Group id or name
+		 * @param {object} data Properties to initialize the object (optional)
+		 * 
+		 * @example
+		 * <pre>
+         *  // Previously initiated web service and injected SPGroup service ...
+		 *  var group = new SPGroup(web, 'Visitors');
+		 *
+		 *  // ... do something with the group object
+		 *  group.getUsers().then(function(users) {
+		 *    // ...
+		 *  });
+		 * </pre>
+		 *
+		 */
 		var SPGroupObj = function(web, groupName, groupProperties) {
 
 			if (web === void 0) {
@@ -3362,122 +4155,140 @@ angular.module('ngSharePoint').factory('SPGroup',
 
 
 
-		// ****************************************************************************
-		// getProperties
-		//
-		// Gets group properties and attach it to 'this' object.
-		//
-		// @returns: Promise with the result of the REST query.
-		//
-		SPGroupObj.prototype.getProperties = function(query) {
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPGroup#getProperties
+         * @methodOf ngSharePoint.SPGroup
+         *
+         * @description
+         * Makes a call to the SharePoint server and collects all the group properties.
+         * The current object is extended with the recovered properties. This means that when this method is executed,
+         * any group property is accessible directly. ex: `group.Title`, `group.Description`, `group.CanCurrentUserEditMembership`, etc.
+         *
+         * For a complete list of group properties go to Microsoft
+         * SharePoint {@link https://msdn.microsoft.com/en-us/library/office/dn531432.aspx#bk_GroupProperties group api reference}
+         *
+         * @returns {promise} promise with an object with all group properties
+         *
+         */
+		SPGroupObj.prototype.getProperties = function() {
 
-			var self = this;
-			var def = $q.defer();
-			var executor = new SP.RequestExecutor(self.web.url);
-			var defaultExpandProperties = 'Owner';
+			var self = this,
+				url = self.apiUrl;
+			
+			return SPHttp.get(url).then(function(data) {
 
-			if (query) {
-				query.$expand = defaultExpandProperties + (query.$expand ? ', ' + query.$expand : '');
-			} else {
-				query = { 
-					$expand: defaultExpandProperties
-				};
-			}
+				utils.cleanDeferredProperties(data);
+				angular.extend(self, data);
 
-			executor.executeAsync({
-
-				url: self.apiUrl + utils.parseQuery(query),
-				method: 'GET', 
-				headers: { 
-					"Accept": "application/json; odata=verbose"
-				}, 
-
-				success: function(data) {
-
-					var d = utils.parseSPResponse(data);
-					utils.cleanDeferredProperties(d);
-					
-					angular.extend(self, d);
-
-					def.resolve(self);
-				}, 
-
-				error: function(data, errorCode, errorMessage) {
-
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
-
-					def.reject(err);
-				}
+				return self;
 			});
 
-			return def.promise;
 
 		}; // getProperties
 
 
 
-		// ****************************************************************************
-		// getUsers
-		//
-		// Gets group users
-		//
-		// @returns: Promise with the result of the REST query.
-		//
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPGroup#getOwner
+	     * @methodOf ngSharePoint.SPGroup
+	     *
+	     * @description
+	     * Retrieves the sharepoint owner of the group.
+	     *
+	     * @returns {promise} promise with an {@link ngSharePoint.SPUser SPUser} object  
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var group = web.getGroup('Visitors');
+		 *     group.getOwner().then(function(owner) {
+		 *       
+	     *         console.log(owner.Name);
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
+		SPGroupObj.prototype.getOwner = function() {
+
+			var self = this,
+				url = self.apiUrl + '/Owner';
+			
+			return SPHttp.get(url).then(function(data) {
+
+				utils.cleanDeferredProperties(data);
+
+				var owner;
+
+				if (data.PrincipalType === 8) {
+					// group
+					owner = SPObjectProvider.getSPGroup(self.web, data.Id, data);
+				} else {
+					// user
+					owner = SPObjectProvider.getSPUser(self.web, data.Id, data);
+				}
+				self.Owner = owner;
+
+				return self;
+			});
+
+		};	// getOwner
+
+
+
+
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPGroup#getUsers
+	     * @methodOf ngSharePoint.SPGroup
+	     *
+	     * @description
+	     * Gets a collection of {@link ngSharePoint.SPUser SPUser} objects that represents all of the users in the group.
+	     *
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPUser SPUser} objects  
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var group = web.getGroup('Visitors');
+		 *     group.getUsers().then(function(users) {
+		 *       
+		 *        angular.forEach(users, function(user) {
+	     *           console.log(user.Name);
+		 *        });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
 		SPGroupObj.prototype.getUsers = function() {
 
-			var self = this;
-			var def = $q.defer();
+			var self = this,
+				url = self.apiUrl + '/Users',
+				users = self.Users;
 
-			if (this.Users !== void 0) {
 
-				def.resolve(this.Users);
+			if (users === void 0) {
 
-			} else {
+				users = SPHttp.get(url).then(function(data) {
 
-				var executor = new SP.RequestExecutor(self.web.url);
+					var users = [];
+					angular.forEach(data, function(user) {
+						users.push(SPObjectProvider.getSPUser(self.web, user.Id, user));
+					});
 
-				executor.executeAsync({
-
-					url: self.apiUrl + '/Users',
-					method: 'GET', 
-					headers: { 
-						"Accept": "application/json; odata=verbose"
-					}, 
-
-					success: function(data) {
-
-						var d = utils.parseSPResponse(data);
-						var users = [];
-
-						angular.forEach(d, function(user) {
-
-							users.push(new SPUser(self.web, user.Id, user));
-
-						});
-
-						self.Users = users;
-
-						def.resolve(users);
-					}, 
-
-					error: function(data, errorCode, errorMessage) {
-
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
-
-						def.reject(err);
-					}
+					self.Users = users;
+					return users;
 				});
 			}
 
-			return def.promise;
+            return $q.when(users);
 
 		}; // getUsers
 
@@ -3489,37 +4300,133 @@ angular.module('ngSharePoint').factory('SPGroup',
 	}
 ]);
 
-/*
-    SPList - factory
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPHttp
+ *
+ * @description
+ * SPHttp service is a core ng-SharePoint service that facilitates communication with remote REST api and perform
+ * common configuration and response process tasks.
+ *
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
 
+angular.module('ngSharePoint').service('SPHttp', 
 
+    ['$q', '$http', 
 
-///////////////////////////////////////
-//  SPList
-///////////////////////////////////////
-
-angular.module('ngSharePoint').factory('SPList', 
-
-    ['$q', 'SPCache', 'SPFolder', 'SPListItem', 'SPContentType', 'SPObjectProvider', 
-
-    function SPList_Factory($q, SPCache, SPFolder, SPListItem, SPContentType, SPObjectProvider) {
+    function ($q, $http) {
 
         'use strict';
 
 
-        // ****************************************************************************
-        // SPList constructor
-        //
-        // @web: SPWeb instance that contains the list in SharePoint.
-        // @listName: Name or Guid of the list you want to instantiate.
-        //
+
+        /**
+        * Makes a GET call to a specified REST api
+        * *Internal use*
+        */
+        this.get = function(url, params) {
+
+            var self = this;
+            var def = $q.defer();
+
+            $http({
+
+                url: url,
+                method: 'GET', 
+                headers: { 
+                    "Accept": "application/json; odata=verbose"
+                }
+
+            }).then(function(data) {
+
+                var d = utils.parseSPResponse(data);
+                def.resolve(d);
+                    
+            }, function(data, errorCode, errorMessage) {
+
+                var err = utils.parseError({
+                    data: data.config,
+                    errorCode: data.status,
+                    errorMessage: data.statusText
+                });
+
+                def.reject(err);
+            });
+
+            return def.promise;
+
+        }; // get
+
+
+        /**
+        * Makes a POST call to a specified REST api
+        * *Internal use*
+        */
+        this.post = function(url, params) {
+
+
+
+        }; // setJSLink
+
+    }
+]);
+
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPList
+ *
+ * @description
+ * Represents an SPList object that you can use to access to all SharePoint list properties and data.
+ *
+ * It is possible to create new SPList objects or use an {@link ngSharePoint.SPWeb SPWeb} object to get SPList object instances.
+ *
+ * *At the moment, not all SharePoint API methods for list objects are implemented in ngSharePoint*
+ *
+ * @requires ngSharePoint.SPListItem
+ * @requires ngSharePoint.SPFolder
+ * @requires ngSharePoint.SPContentType
+ *
+ */
+
+
+angular.module('ngSharePoint').factory('SPList',
+
+    ['$q', 'SPHttp', 'SPCache', 'SPFolder', 'SPListItem', 'SPContentType', 'SPObjectProvider',
+
+    function SPList_Factory($q, SPHttp, SPCache, SPFolder, SPListItem, SPContentType, SPObjectProvider) {
+
+        'use strict';
+
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Instantiates a new `SPList` object that points to a specific SharePoint list. With a
+         * list instance it is possible to access their properties and get list items.
+         *
+         * *Note*: this method only instantiates a new `SPList` object initialized for future access to
+         * list related API (get list items, folders, documents). This method doesn't retrieve any
+         * list properties or information. To get list properties it is necessary to call
+         * {@link ngSharePoint.SPList#getProperties getProperties} method.
+         *
+         * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object where the list is located
+         * @param {string} listID|listName List ID or list name.
+         * It is possible to specify "UserInfoList" to refer to the system list with all site users.
+         * @param {object} listProperties Properties to initialize the object
+         *
+         * @example
+         * <pre>
+         * var docs = new SPList(web, 'Shared documents');
+         * // ... do something with the 'docs' object
+         * docs.getListItems().then(...);
+         * </pre>
+         *
+         */
         var SPListObj = function(web, listName, listProperties) {
 
             if (web === void 0) {
@@ -3570,14 +4477,14 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getListItemEntityTypeFullName
-        //
-        // Gets the 'ListItemEntityTypeFullName' for the list and attach to 'this' object.
-        // This property is needed for CRUD operations.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * Gets the 'ListItemEntityTypeFullName' property for the list and attach it
+         * to 'this' object.
+         *
+         * This property is required for CRUD operations.
+         *
+         * This method is used internally.
+         */
         SPListObj.prototype.getListItemEntityTypeFullName = function() {
 
             var self = this;
@@ -3593,7 +4500,7 @@ angular.module('ngSharePoint').factory('SPList',
                 self.getProperties().then(function() {
                     def.resolve(self.ListItemEntityTypeFullName);
                 });
-                
+
             }
 
             return def.promise;
@@ -3602,63 +4509,103 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getProperties
-        //
-        // Gets list properties and attach it to 'this' object.
-        //
-        // http://msdn.microsoft.com/es-es/library/office/jj164022(v=office.15).aspx
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getProperties
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Makes a call to the SharePoint server and collects all list properties.
+         * The current object is extended with the recovered properties. This means that when this method is executed,
+         * any list property is accessible directly. ex: `list.Title`, `list.BaseTemplate`, `list.AllowContentTypes`, etc.
+         *
+         * For a complete list of list properties go to Microsoft
+         * SharePoint {@link https://msdn.microsoft.com/EN-US/library/dn531433.aspx#bk_ListProperties list api reference}
+         *
+         * SharePoint REST api only returns certain list properties that have primary values. Properties with complex structures
+         * like `ContentTypes`, `EffectiveBasePermissions` or `Fields` are not returned directly by the api and it is necessary to extend the query
+         * to retrieve their values. It is possible to accomplish this with the `query` param.
+         *
+         * @param {object} query This parameter specifies which list properties will be extended and retrieved from the server.
+         * By default `Views` property is extended.
+         *
+         * @returns {promise} promise with an object with all list properties
+         *
+         * @example
+         * This example shows how to retrieve list properties:
+         * <pre>
+         *
+         *   SharePoint.getCurrentWeb(function(web) {
+         *
+         *     web.getList("Orders").then(function(list) {
+         *
+         *        list.getProperties().then(function() {
+         *
+         *            // at this point we have all list properties
+         *            if (!list.EnableAttachments) {
+         *                alert("You can't attach any file");
+         *            }
+         *        });
+         *     });
+         *
+         *   });
+         * </pre>
+         *
+         */
         SPListObj.prototype.getProperties = function(query) {
 
             var self = this;
             var def = $q.defer();
+            var defaultExpandProperties = 'Views';
 
-            query = query || {};
+            if (query) {
+                query.$expand = defaultExpandProperties + (query.$expand ? ',' + query.$expand : '');
+            } else {
+                query = {
+                    $expand: defaultExpandProperties
+                };
+            }
 
 
+            // Check if the requested properties (query.$expand) are already defined to avoid to make an unnecessary new request to the server.
             if (this.Created !== undefined) {
 
                 var infoIsOk = true;
 
-                // The list properties are already here
+                // The list properties are already here?
                 if (query.$expand !== undefined) {
-
+                    /*
                     if (query.$expand.toLowerCase().indexOf('fields') >= 0 && this.Fields === undefined) infoIsOk = false;
                     if (query.$expand.toLowerCase().indexOf('contenttypes') >= 0 && this.ContentTypes === undefined) infoIsOk = false;
+                    */
+                    angular.forEach(query.$expand.split(/, */g), function(expandKey) {
+
+                        infoIsOk = infoIsOk && self[expandKey] !== void 0;
+
+                    });
+
                 }
+
 
                 if (infoIsOk) {
 
                     def.resolve(this);
                     return def.promise;
-                }                
+
+                }
             }
 
+
+            // Make the query to the server.
             var executor = new SP.RequestExecutor(self.web.url);
-
-            var defaultExpandProperties = 'Views';
-            // NOTA: Se ha eliminado la expansión automática del objeto 'Forms' debido a 
-            // que si la lista es la 'SiteUserInfoList' se genera un error porque no 
-            // tiene formularios sino que se utiliza la página /_layouts/15/UserDisp.aspx
-            // para visualizar un usuario y un popup para la edición.
-
-            if (query) {
-                query.$expand = defaultExpandProperties + (query.$expand ? ', ' + query.$expand : '');
-            } else {
-                query = { 
-                    $expand: defaultExpandProperties
-                };
-            }
 
             executor.executeAsync({
 
                 url: self.apiUrl + utils.parseQuery(query),
-                method: 'GET', 
-                headers: { 
+                method: 'GET',
+                headers: {
                     "Accept": "application/json; odata=verbose"
-                }, 
+                },
 
                 success: function(data) {
 
@@ -3697,7 +4644,7 @@ angular.module('ngSharePoint').factory('SPList',
                     }
 
                     def.resolve(d);
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -3718,15 +4665,38 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-
-        // ****************************************************************************
-        // updateProperties
-        //
-        // Updates the list properties
-        //
-        // @properties: Object with the properties to update.
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#updateProperties
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * With this method, it is possible to modify list properties. The method has an object param
+         * with any property to modify and makes a call to the server API in order to modify it.
+         *
+         * @param {object} properties An object with all the properties to modify
+         * @returns {promise} promise with an object that contains all modified list properties
+         *
+         * @example
+         * <pre>
+         *   SharePoint.getCurrentWeb(function(web) {
+         *
+         *     web.getList("Orders").then(function(list) {
+         *
+         *         list.updateProperties({
+         *
+         *             EnableAttachments: true,
+         *             ForceCheckout: false
+         *
+         *         }).then(function() {
+         *             // ...
+         *         });
+         *     });
+         *
+         *   });
+         * </pre>
+         *
+         */
         SPListObj.prototype.updateProperties = function(properties) {
 
             var self = this;
@@ -3749,7 +4719,7 @@ angular.module('ngSharePoint').factory('SPList',
                 "Accept": "application/json; odata=verbose",
                 "content-type": "application/json;odata=verbose",
                 "X-HTTP-Method": "MERGE",
-                "IF-MATCH": "*" // Overwrite any changes in the item. 
+                "IF-MATCH": "*" // Overwrite any changes in the item.
                                 // Use 'item.__metadata.etag' to provide a way to verify that the object being changed has not been changed since it was last retrieved.
             };
 
@@ -3779,7 +4749,7 @@ angular.module('ngSharePoint').factory('SPList',
 
                     def.resolve(properties);
 
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -3794,20 +4764,73 @@ angular.module('ngSharePoint').factory('SPList',
             });
 
 
-            return def.promise;            
+            return def.promise;
 
         }; // updateProperties
 
 
 
 
-        // ****************************************************************************
-        // getFields
-        //
-        // Gets list fields
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getFields
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method retrieves the Fields collection of the list and creates a new object property
+         * called "Fields" that contains a named property for every field.
+         *
+         * After a call to this method, the schema of every field is available in the list and all
+         * their properties (default values, validation expressions, choice values or lookup properties).
+         *
+         * For a complete list of field properties go to Microsoft
+         * SharePoint {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldProperties field api reference}.
+         * Also, there are additional field specific properties that you can retrieve
+         * based on the field type:
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldCalculated FieldCalculated},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldCollection FieldCollection},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldComputed FieldComputed},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldDateTime FieldDateTime},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldGeolocation FieldGeolocation},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldGuid FieldGuid},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldLookup FieldLookup and FieldUser},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldMultiChoice FieldMultiChoice, FieldChoice, and FieldRatingScale},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldMultiLineText FieldMultiLineText},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldNumber FieldNumber and FieldCurrency},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldText FieldText},
+         * {@link https://msdn.microsoft.com/EN-US/library/dn600182.aspx#bk_FieldUrl FieldUrl},
+         *
+         * With all of this information, you might construct new interfaces (views, forms, etc) that follow
+         * definitions of any SharePoint list.
+         *
+         * *Note*: The list of fields of the list isn't necessaray equal to the item content type.
+         * If you want to get the content type specific fields, you can call `getFields method of
+         * the specific content type.
+         *
+         * @returns {promise} promise with an object that contains all of the fields schema
+         *
+         * @example
+         * <pre>
+         *   // a pre-initialized "list" object ...
+         *   list.getFields().then(function() {
+         *
+         *       // at this point, you have access to the definition of any list field
+         *       console.log(list.Fields.Title.DefaultValue);
+         *       // this returns '' or any defined value
+         *
+         *       console.log(list.Fields.DueDate.Required);
+         *       // this returns true or false
+         *
+         *       console.log(list.Fields.Editor.ReadOnlyField);
+         *       // this returns true
+         *
+         *       console.log(list.Fields.ProjectStatus.Choices.results);
+         *       // this returns an array with available choices ['Open', 'Closed', 'Draft']
+         *   });
+         *
+         * </pre>
+         *
+         */
         SPListObj.prototype.getFields = function() {
 
             var self = this;
@@ -3857,7 +4880,7 @@ angular.module('ngSharePoint').factory('SPList',
                     }
                 });
             }
-            
+
             return def.promise;
 
         }; // getFields
@@ -3865,13 +4888,31 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getContentTypes
-        //
-        // Gets the list content types
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getContentTypes
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method retrieves a list of all content types of the list.
+         *
+         * If you call this method, a new `ContentType` property will be set with an array of content types.
+         *
+         * @returns {promise} promise with an array of all content types associated with the list.
+         * Every element on the array is a {@link ngSharePoint.SPContentType SPContentType} object.
+         *
+         * @example
+         * <pre>
+         *   list.getContentTypes().then(function() {
+         *
+         *     // ContentTypes property are set in the list object
+         *     list.ContentTypes.forEach(function(ct) {
+         *       console.log(ct.Name);
+         *     });
+         *   });
+         * </pre>
+         *
+        */
         SPListObj.prototype.getContentTypes = function() {
 
             var self = this;
@@ -3885,7 +4926,7 @@ angular.module('ngSharePoint').factory('SPList',
 
                 var executor = new SP.RequestExecutor(self.web.url);
 
-                // We don't cache the content types due to that the user can 
+                // We don't cache the content types due to that the user can
                 // change its order (the default content type) anytime.
 
                 executor.executeAsync({
@@ -3932,17 +4973,37 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-
-        // ****************************************************************************
-        // getContentType
-        //
-        // Gets a list content type by its ID.
-        //
-        // @contentTypeId: The ID of the content type to retrieve if this parameter is
-        // undefined, the function returns the default content type.
-        // @returns: Promise with the result of the REST query.
-        //
-        SPListObj.prototype.getContentType = function(contentTypeId) {
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getContentType
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Gets a specified content type by its ID or name.
+         *
+         * Internally, this method makes a call to {@link ngSharePoint.SPList#getContentTypes getContentTypes} method.
+         *
+         * @param {string=} ID|name The ID or name of the content type to be retrieved. If this parameter is not
+         * specified, the method returns the default content type.
+         * @returns {promise} promise with the {@link ngSharePoint.SPContentType SPContentType} object.
+         *
+         * @example
+         * This example retrieves the associated Issue content type and logs all its field titles.
+         * <pre>
+         *   list.getContentType('Issue').then(function(issueCt) {
+         *
+         *     issueCt.getFields().then(function() {
+         *
+         *          angular.forEach(issueCt.Fields, function(field) {
+         *              console.log(field.Title);
+         *          });
+         *
+         *     });
+         *   });
+         * </pre>
+         *
+        */
+        SPListObj.prototype.getContentType = function(contentTypeID) {
 
             var self = this;
             var def = $q.defer();
@@ -3953,10 +5014,15 @@ angular.module('ngSharePoint').factory('SPList',
 
                 angular.forEach(self.ContentTypes, function(ct) {
 
-                    if (ct.Id === contentTypeId) {
+                    if (ct.StringId === contentTypeID) {
 
                         contentType = ct;
 
+                    }
+
+                    if (ct.Name === contentTypeID) {
+
+                        contentType = ct;
                     }
 
                 });
@@ -3974,32 +5040,30 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getSchema
-        //
-        // Gets list content type fields
-        //
-        // @returns: Promise with the result of the REST query.
-        //
-        SPListObj.prototype.getSchema = function(contentTypeId) {
-
-            return this.getContentType().then(function(defaultContentType) {
-
-                return defaultContentType.getFields();
-
-            });
-
-        }; // getSchema
-
-
-
-        // ****************************************************************************
-        // getRootFolder
-        //
-        // Gets root folder
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getRootFolder
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method gets a reference to the root folder of the list.
+         *
+         * @returns {promise} promise with an {@link ngSharePoint.SPFolder SPFolder} object corresponding
+         * to the root folder.
+         *
+         * @example
+         * This example retrieves the root folder of a document library to add a new file
+         * <pre>
+         *   docLibrary.getRootFolder().then(function(folder) {
+         *
+         *     folder.addFile(...).then(function() {
+         *        . . .
+         *     });
+         *
+         *   });
+         * </pre>
+         *
+        */
         SPListObj.prototype.getRootFolder = function() {
 
             var self = this;
@@ -4016,10 +5080,10 @@ angular.module('ngSharePoint').factory('SPList',
                 executor.executeAsync({
 
                     url: self.apiUrl + '/RootFolder',
-                    method: 'GET', 
-                    headers: { 
+                    method: 'GET',
+                    headers: {
                         "Accept": "application/json; odata=verbose"
-                    }, 
+                    },
 
                     success: function(data) {
 
@@ -4028,7 +5092,7 @@ angular.module('ngSharePoint').factory('SPList',
                         this.RootFolder.List = self;
 
                         def.resolve(this.RootFolder);
-                    }, 
+                    },
 
                     error: function(data, errorCode, errorMessage) {
 
@@ -4049,13 +5113,31 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getSchema
-        //
-        // Gets list content type fields
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getWorkflowAssociationByName
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method searches a list associated workflow by name and returns an object with this information.
+         * The method only find for enabled workflows.
+         *
+         * @param {string} workflowName The name of the workflow to be retrieved.
+         * @returns {promise} promise with an object corresponding to the associated workflow
+         *
+         * @example
+         * This example retrieves one associated workflow
+         * <pre>
+         *   list.getWorkflowAssociatedByName('Open project').then(function(workflowInfo) {
+         *
+         *      console.log(workflowInfo);
+         *      . . .
+         *
+         *   });
+         * </pre>
+         *
+        */
         SPListObj.prototype.getWorkflowAssociationByName = function(workflowName) {
 
             var self = this;
@@ -4070,16 +5152,20 @@ angular.module('ngSharePoint').factory('SPList',
             executor.executeAsync({
 
                 url: self.apiUrl + '/WorkflowAssociations' + params,
-                method: 'GET', 
-                headers: { 
+                method: 'GET',
+                headers: {
                     "Accept": "application/json; odata=verbose"
                 },
-                
+
                 success: function(data) {
 
                     var d = utils.parseSPResponse(data);
-                    def.resolve(d);
-                }, 
+                    if (d.length > 0) {
+                        def.resolve(d[0]);
+                    } else {
+                        def.resolve(undefined);
+                    }
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -4097,19 +5183,165 @@ angular.module('ngSharePoint').factory('SPList',
 
         };  // getWorkflowAssociationByName
 
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#renderListData
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method return an array of objects from the list
+         *
+         * @param {string} viewXml The CAML query.
+         * @returns {promise} promise with an object with all caml options used to retrieve list items
+         *
+         * @example
+         * This example retrieves one associated workflow
+         * <pre>
+         *   list.renderListData('<View><Query></Query><RowLimit>10</RowLimit></View>').then(function(items) {
+         *
+         *      console.log(items.toJson());
+         *      . . .
+         *
+         *   });
+         * </pre>
+         *
+        */
+        SPListObj.prototype.renderListData = function(viewXml) {
 
-        // ****************************************************************************
-        // getListItems
-        //
-        // Gets the list items
-        //
-        // @query: An object with REST query options.
-        //         References:
-        //              http://msdn.microsoft.com/en-us/library/office/fp142385(v=office.15).aspx
-        //              http://msdn.microsoft.com/en-us/library/office/dn292552(v=office.15).aspx
-        //              http://msdn.microsoft.com/en-us/library/office/dn292553(v=office.15).aspx
-        // @returns: Promise with the result of the REST query.
-        //
+            var self = this;
+            var def = $q.defer();
+            var executor = new SP.RequestExecutor(self.web.url);
+			// Set the headers for the REST API call.
+            // ----------------------------------------------------------------------------
+            var headers = {
+                "Accept": "application/json; odata=verbose",
+                "content-type": "application/json;odata=verbose"
+            };
+
+            // Make the call.
+            // ----------------------------------------------------------------------------
+            executor.executeAsync({
+				url: self.apiUrl + "/renderlistdata()",
+                method: 'POST',
+                body: angular.toJson({viewXml: viewXml}),
+                headers: headers,
+                success: function(data) {
+	                var d = angular.fromJson(utils.parseSPResponse(data).RenderListData);
+                    angular.forEach(d.Row, function(item) {
+						// convert single arrays to object
+				        angular.forEach(item, function(value, key) {
+				            if (angular.isArray(value) && value.length === 1) {
+				            	item[key] = value[0];
+				            }
+				        });
+                    });
+                    def.resolve(d.Row);
+                },
+                error: function(data, errorCode, errorMessage) {
+                    var err = utils.parseError({
+                        data: data,
+                        errorCode: errorCode,
+                        errorMessage: errorMessage
+                    });
+
+                    def.reject(err);
+                }
+            });
+
+            return def.promise;
+
+        };  // renderListData
+
+
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getListItems
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Use this method to retrieve a collection of items from the list.
+         *
+         * The method has a `query` parameter that allows you to specify the selection, filters
+         * and order options for the data you request from the server.
+         * All valid OData options implemented by the SharePoint REST api are accepted.
+         *
+         * Go to {@link https://msdn.microsoft.com/en-us/library/office/fp142385(v=office.15).aspx SharePoint documentation} for
+         * more information about the OData query operations in SharePoint REST api.
+         *
+         * By default, this method expands the following properties:
+         * * ContentType
+         * * File
+         * * File/ParentFolder
+         * * Folder
+         * * Folder/ParentFolder
+         *
+         * @param {object=} query An object with all query options used to retrieve list items.
+         *
+         * It is possible to specify different query options:
+         * <pre>
+         *     var query = {
+         *          // Use the $filter query option to select
+         *          // which items to return
+         *          $filter: "filter expression",
+         *          // Use $top to indicate the number of items
+         *          // to be retrieved (for pagination purposes)
+         *          $top: nn,
+         *          // User $orderby to specify how to sort the
+         *          // items in your query return set
+         *          $orderby: "field1 asc,field2 desc,...",
+         *          // to get additional information of other
+         *          // lookup fields
+         *          $expand: "field1,field2,..."
+         *     };
+         *     someList.getListItems(query).then(...);
+         * </pre>
+         * @param {boolean=} resetPagination With this param you can specify if you want to continue with the
+         * previous query and retrieve the next set of items or want to reset the counter and start a completely new query.
+         *
+         * By default SharePoint returns sets of 100 items from the server. You can modify this value with the param `$top`
+         *
+         * @returns {promise} promise with a collection of {@link ngSharePoint.SPListItem SPListItem} elements
+         * retrieved from the server
+         *
+         * @example
+         * This example retrieves the list of "Closed" projects in a list ordered by close date
+         * <pre>
+         *   list.getListItems({
+         *
+         *      $filter: "ProjectStatus eq 'Closed'",
+         *      $orderby: "ClosedDate desc"
+         *
+         *   }).then(function(listItems) {
+         *
+         *      console.log(listItems);
+         *
+         *   });
+         * </pre>
+         *
+         * Suppose that you have a list of announcements categorized by department. A `Department` field
+         * is a lookup to the "departments" lists and you want to query the announcements of the "RRHH" department.
+         *
+         * If you know the ID of the RRHH item in the "departments" list (ex: 2), you would make this query:
+         * <pre>
+         *      announcementsList.getListItems({ $filter: "Department eq 2"}).then(...);
+         * </pre>
+         *
+         * But if you don't know the ID and want to make the query by its title, you should expand
+         * the lookup column, select the desired related column and filter the result set.
+         * The query will be similar to this:
+         *
+         * <pre>
+         *      announcementsList.getListItems({
+         *
+         *          $expand: "Department",
+         *          $select: "Department/Title,*",
+         *          $filter: "Department/Title eq 'RRHH'"
+         *
+         *      }).then(...);
+         * </pre>
+         *
+        */
         SPListObj.prototype.getListItems = function(query, resetPagination) {
 
             var self = this;
@@ -4125,9 +5357,16 @@ angular.module('ngSharePoint').factory('SPList',
             } else {
 
                 if (query) {
-                    query.$expand = defaultExpandProperties + (query.$expand ? ', ' + query.$expand : '');
+                    if (query.$expand !== void 0) {
+                        var idx = query.$expand.lastIndexOf(defaultExpandProperties);
+                        if (idx !== -1) {
+                            // previous expanded
+                            query.$expand = query.$expand.substring(0, idx);
+                        }
+                    }
+                    query.$expand = defaultExpandProperties + (query.$expand ? ',' + query.$expand : '');
                 } else {
-                    query = { 
+                    query = {
                         $expand: defaultExpandProperties
                     };
                 }
@@ -4138,10 +5377,10 @@ angular.module('ngSharePoint').factory('SPList',
             executor.executeAsync({
 
                 url: self.apiUrl + '/Items' + urlParams,
-                method: 'GET', 
-                headers: { 
+                method: 'GET',
+                headers: {
                     "Accept": "application/json; odata=verbose"
-                }, 
+                },
 
                 success: function(data) {
                     var d = utils.parseSPResponse(data);
@@ -4177,7 +5416,7 @@ angular.module('ngSharePoint').factory('SPList',
                     // Returns an array of initialized 'SPListItem' objects.
                     def.resolve(items);
 
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -4197,33 +5436,60 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getItemById
-        //
-        // Gets an item from the list by its ID. 
-        //
-        // @id: {Counter} The id of the item.
-        // @expandProperties: {String} Comma separated values with the properties to 
-        //                    expand in the REST query.
-        // @returns: Promise with the result of the REST query.
-        //
-        SPListObj.prototype.getItemById = function(id, expandProperties) {
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getItemById
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method gets a specified list item.
+         *
+         * @param {integer} ID The ID of the item to be retrieved.
+         * @param {string} expandProperties Comma separated values with the properties to expand
+         * in the REST query
+         * @returns {promise} promise with an object of type {@link ngSharePoint.SPListItem SPListItem} corresponding
+         * with the element retrieved
+         *
+         * @example
+         * This example retrieves the item specified by the query string over the contextual list.
+         * This assumes that this code is executed in a form page
+         * <pre>
+         *      var itemID = utils.getQueryStringParamByName('ID');
+         *
+         *      SharePoint.getCurrentWeb().then(function(web) {
+         *
+         *          web.getList(_spPageContextInfo.pageListId).then(function(list) {
+         *
+         *              list.getItemById(itemID).then(function(item) {
+         *
+         *                  $scope.currentItem = item;
+         *
+         *              });
+         *          });
+         *
+         *      });
+         *
+         * </pre>
+         *
+        */
+        SPListObj.prototype.getItemById = function(ID, expandProperties) {
 
             var self = this;
             var def = $q.defer();
             var executor = new SP.RequestExecutor(self.web.url);
             var defaultExpandProperties = 'ContentType,File,File/ParentFolder,Folder,Folder/ParentFolder';
             var query = {
-                $expand: defaultExpandProperties + (expandProperties ? ', ' + expandProperties : '')
+                $expand: defaultExpandProperties + (expandProperties ? ',' + expandProperties : '')
             };
 
             executor.executeAsync({
 
-                url: self.apiUrl + '/getItemById(' + id + ')' + utils.parseQuery(query),
-                method: 'GET', 
-                headers: { 
+                url: self.apiUrl + '/getItemById(' + ID + ')' + utils.parseQuery(query),
+                method: 'GET',
+                headers: {
                     "Accept": "application/json; odata=verbose"
-                }, 
+                },
 
                 success: function(data) {
 
@@ -4242,7 +5508,7 @@ angular.module('ngSharePoint').factory('SPList',
 
                     var spListItem = new SPListItem(self, d);
                     def.resolve(spListItem);
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -4258,23 +5524,46 @@ angular.module('ngSharePoint').factory('SPList',
 
             return def.promise;
 
-        }; // getItemById
+        }; // getItemByID
 
 
 
-        // ****************************************************************************
-        // getItemQueryById
-        //
-        // Gets an item property value from the list by item ID. 
-        //
-        // @id: {Counter} The id of the item.
-        // @query: {String} The REST query after '.../getItemById(<id>)/'
-        //         e.g. If query parameter equals to 'Author/Name'
-        //              the final query will be '.../getItemById(<id>)/Author/Name'
-        //              and will return the 'Name' of the 'Author' of the item.
-        // @returns: Promise with the result of the REST query.
-        //
-        SPListObj.prototype.getItemQueryById = function(id, query) {
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getItemProperty
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * This method gets a specified related item property from the list.
+         *
+         * @param {integer} ID The ID of the item.
+         * @param {string} query The REST query after '.../getItemById(<ID>)/'
+         *
+         * @returns {promise} promise with the value of the property. Can be a primary value like a string or
+         * an integer or can be a complex value like a item. It depends of the query specified.
+         *
+         * @example
+         * With this method you can obtain the related information of an item. You can specify simple expressions
+         * or other more sophisticated expressions. The following examples show how you can use it.
+         *
+         * <pre>
+         *   // This returns the name of the author (string)
+         *   list.getItemProperty(ID, 'Created/Name').then(...);
+         *
+         *   // This returns the title of the department (string)
+         *   list.getItemProperty(ID, 'Department/Title').then(...)
+         *
+         *   // This returns the manager of the department (item)
+         *   list.getItemProperty(ID, 'Department/Manager').then(...)
+         *
+         *   // This returns the EMail of the manager's department for the
+         *   // user who has created the item
+         *   list.getItemProperty(ID, 'Created/Department/Manager/EMail');
+         * </pre>
+         *
+        */
+        SPListObj.prototype.getItemProperty = function(ID, query) {
 
             var self = this;
             var def = $q.defer();
@@ -4282,17 +5571,17 @@ angular.module('ngSharePoint').factory('SPList',
 
             executor.executeAsync({
 
-                url: self.apiUrl + '/getItemById(' + id + ')/' + query.ltrim('/'),
-                method: 'GET', 
-                headers: { 
+                url: self.apiUrl + '/getItemById(' + ID + ')/' + query.ltrim('/'),
+                method: 'GET',
+                headers: {
                     "Accept": "application/json; odata=verbose"
-                }, 
+                },
 
                 success: function(data) {
 
                     var d = utils.parseSPResponse(data);
                     def.resolve(d);
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -4308,16 +5597,25 @@ angular.module('ngSharePoint').factory('SPList',
 
             return def.promise;
 
-        }; // getItemById
+        }; // getItemProperty
 
 
 
-        // ****************************************************************************
-        // getDefaultViewUrl
-        //
-        // Gets the default edit form url
-        // @returns: Promise with the result of the REST query.
-        //
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getDefaultViewUrl
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Use this method to obtain the default view URL of a list.
+         *
+         * **Note** This method uses JSOM to retrieve this URL because there aren't
+         * any REST API call that returns this value.
+         *
+         * @returns {promise} promise with the url.
+         *
+        */
         SPListObj.prototype.getDefaultViewUrl = function() {
 
             var self = this;
@@ -4370,12 +5668,22 @@ angular.module('ngSharePoint').factory('SPList',
         };   // getDefaultViewUrl
 
 
-        // ****************************************************************************
-        // getDefaultEditFormUrl
-        //
-        // Gets the default edit form url
-        // @returns: Promise with the result of the REST query.
-        //
+
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getDefaultEditFormUrl
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Use this method to obtain the URL of the default edit form.
+         *
+         * **Note** This method uses JSOM to retrieve this URL because there isn't
+         * an REST API call that returns this value.
+         *
+         * @returns {promise} promise with the url.
+         *
+        */
         SPListObj.prototype.getDefaultEditFormUrl = function() {
 
             var self = this;
@@ -4428,12 +5736,22 @@ angular.module('ngSharePoint').factory('SPList',
         };   // getDefaultEditFormUrl
 
 
-        // ****************************************************************************
-        // getDefaultDisplayFormUrl
-        //
-        // Gets the default edit form url
-        // @returns: Promise with the result of the REST query.
-        //
+
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getDefaultDisplayFormUrl
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Use this method to obtain the URL of the default display form.
+         *
+         * **Note** This method uses JSOM to retrieve this URL because there aren't
+         * any REST API call that returns this value.
+         *
+         * @returns {promise} promise with the url.
+         *
+        */
         SPListObj.prototype.getDefaultDisplayFormUrl = function() {
 
             var self = this;
@@ -4487,12 +5805,21 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // getDefaultNewFormUrl
-        //
-        // Gets the default edit form url
-        // @returns: Promise with the result of the REST query.
-        //
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPList#getDefaultNewFormUrl
+         * @methodOf ngSharePoint.SPList
+         *
+         * @description
+         * Use this method to obtain the URL of the default new form.
+         *
+         * **Note** This method uses JSOM to retrieve this URL because there aren't
+         * any REST API call that returns this value.
+         *
+         * @returns {promise} promise with the url.
+         *
+        */
         SPListObj.prototype.getDefaultNewFormUrl = function() {
 
             var self = this;
@@ -4546,13 +5873,10 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // createItem
-        //
-        // Creates an item in the list. 
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * Creates an item in the list
+         * This method is obsolete. Use the SPListItem.save method.
+         */
         SPListObj.prototype.createItem = function(properties) {
 
             var self = this;
@@ -4598,14 +5922,14 @@ angular.module('ngSharePoint').factory('SPList',
                     url: self.apiUrl + '/items',
                     method: 'POST',
                     body: angular.toJson(body),
-                    headers: headers, 
+                    headers: headers,
 
                     success: function(data) {
 
                         var d = utils.parseSPResponse(data);
 
                         def.resolve(d);
-                    }, 
+                    },
 
                     error: function(data, errorCode, errorMessage) {
 
@@ -4628,15 +5952,10 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // updateItem
-        //
-        // Creates an item in the list. 
-        //
-        // @id: {counter} The ID of the item to update.
-        // @properties: {Object} The item properties to update.
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * Updates a specific item in the list
+         * This method is obsolete. Use the SPListItem.save method.
+         */
         SPListObj.prototype.updateItem = function(id, properties) {
 
             var self = this;
@@ -4665,7 +5984,7 @@ angular.module('ngSharePoint').factory('SPList',
                     "Accept": "application/json; odata=verbose",
                     "content-type": "application/json;odata=verbose",
                     "X-HTTP-Method": "MERGE",
-                    "IF-MATCH": "*" // Overwrite any changes in the item. 
+                    "IF-MATCH": "*" // Overwrite any changes in the item.
                                     // Use 'item.__metadata.etag' to provide a way to verify that the object being changed has not been changed since it was last retrieved.
                 };
 
@@ -4690,7 +6009,7 @@ angular.module('ngSharePoint').factory('SPList',
                         var d = utils.parseSPResponse(data);
 
                         def.resolve(d);
-                    }, 
+                    },
 
                     error: function(data, errorCode, errorMessage) {
 
@@ -4713,14 +6032,10 @@ angular.module('ngSharePoint').factory('SPList',
 
 
 
-        // ****************************************************************************
-        // deleteItem
-        //
-        // Removes an item from the list.
-        //
-        // @id: {counter} The ID of the item to delete.
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * Removes an item in the list
+         * This method is obsolete. Use the SPListItem.remove method.
+         */
         SPListObj.prototype.deleteItem = function(id) {
 
             var self = this;
@@ -4744,7 +6059,7 @@ angular.module('ngSharePoint').factory('SPList',
 
 
             // Make the call.
-            // ----------------------------------------------------------------------------             
+            // ----------------------------------------------------------------------------
             executor.executeAsync({
 
                 url: self.apiUrl + '/items(' + id + ')',
@@ -4756,7 +6071,7 @@ angular.module('ngSharePoint').factory('SPList',
                     var d = utils.parseSPResponse(data);
 
                     def.resolve(d);
-                }, 
+                },
 
                 error: function(data, errorCode, errorMessage) {
 
@@ -4783,21 +6098,24 @@ angular.module('ngSharePoint').factory('SPList',
     }
 ]);
 
-/*
-    SPListItem - factory
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPListItem
+ *
+ * @description
+ * Represents an SPListItem object that you could use to insert, modify or remove items on 
+ * SharePoint lists.
+ *
+ * It is possible to create new SPListItem objects or use an {@link ngSharePoint.SPList SPList} object to 
+ * get the SPListItems stored in the list.
+ *
+ * *At the moment, not all SharePoint API methods for list items are implemented in ngSharePoint*
+ *
+ * @requires ngSharePoint.SPList
+ *
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
 
-
-
-///////////////////////////////////////
-//  SPListItem
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPListItem', 
 
@@ -4808,12 +6126,43 @@ angular.module('ngSharePoint').factory('SPListItem',
         'use strict';
 
 
-        // ****************************************************************************
-        // SPListItem constructor
-        //
-        // @list: SPList instance that contains the item in SharePoint.
-        // @data: {Int32 | object} Must be an item identifier (ID) or item properties.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#constructor
+         * @constructor
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Instantiates a new `SPListItem` object for a specific list. It's possible
+         * to specify their new properties (data).
+         *
+         * When you call {@link ngSharePoint.SPList#getListItems getListItems} or 
+         * {@link ngSharePoint.SPList#getItemById getItemById}, SPListItem objects are returned.
+         *
+         * @param {SPList} list A valid {@link ngSharePoint.SPList SPList} object where the item is stored
+         * @param {object|Int32} data|itemId Can be an object with item properties or an item identifier.
+         *
+         * @example
+         * The next code creates a new announcement:
+         * <pre>
+         *   SharePoint.getCurrentWeb(function(web) {
+         *
+         *     web.getList('Announcements').then(function(list) {
+         *
+         *          var item = new SPListItem(list);
+         *
+         *          item.Title = 'ngSharePoint is here!!';
+         *          item.Body = '<strong>ngSharePoint</strong> is a new Angular library that allows to <br/>interact easily with SharePoint';
+         *          item.Expires = new Date(2020, 12, 31);
+         *
+         *          item.save().then(function() {
+         *              SP.UI.Notify.addNotification('Annuncement created', false);
+         *          });
+         *     });
+         *
+         *   });
+         * </pre>
+         */
         var SPListItemObj = function(list, data) {
 
             var self = this;
@@ -4855,27 +6204,37 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************
-        // isNew
-        //
-        // Returns a boolean value indicating if the item is a new item.
-        //
-        // @returns: {Boolean} True if the item is a new item. Otherwise false.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#isNew
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * List items can be retrieved from the server or created on the client side before 
+         * being saved on the server.
+         *
+         * This method indicates if the item is new and will create an item on the server
+         * or will update an existing element.
+         *
+         * Any item that doesn't have `Id` property is considered new.
+         *
+         * @returns {Boolean} indicating if the item is new or not.
+         *
+         */
         SPListItemObj.prototype.isNew = function() {
             return this.Id === void 0;
         };
 
 
 
-
-        // ****************************************************************************     
-        // getAPIUrl
-        //
-        // Gets the SharePoint 2013 REST API url for the item.
-        //
-        // @returns: {String} The item API url.
-        //
+        /**
+         * This method is called internally to get the correct API url depending if the
+         * item is new or not.
+         * This can be <site>/_api/web/<list>/Items for new elements or 
+         * <site>/_api/web/<list>/Items(<itemId>) for existing items
+         *
+         * @returns {string} with the correct API REST url endpoint for the item.
+         */
         SPListItemObj.prototype.getAPIUrl = function() {
 
             var apiUrl = this.list.apiUrl + '/Items';
@@ -4890,14 +6249,44 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // getProperties
-        //
-        // Gets properties of the item and attach it to 'this' object.
-        // If the item is a DocumentLibrary item, also gets the File and/or Folder.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#getProperties
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Retrieve an item from the server and attaches it to 'this' object. To retrieve
+         * a specific item, you must specify the item ID.
+         *
+         *
+         * Instead of creating a new SPListItem, specify the ID and `getProperties` then it is recommendable
+         * to use {@link ngSharePoint.SPList#getItemById getItemById} of the SPList object.
+         * 
+         * By default, if the item is a DocumentLibrary item, this method gets the {@link ngSharePoint.SPFile File} 
+         * and/or {@link ngSharePoint.SPFolder Folder} properties.
+         *
+         * @param {string} expandProperties Comma separated values with the properties to expand
+         * in the item.
+         *
+         * @returns {promise} promise with all the item properties (fields) retrieved from the server
+         *
+         * @example
+         * <pre>
+         *    var item = new SPListItem(anyList, anyId);
+         *    // or
+         *    var otherItem = new SPListItem(anyList);
+         *    otherItem.Id = anyId;
+         *
+         *    // Later ...
+         *    item.getProperties().then(function() {
+         *
+         *      console.log('This will return false: ' + item.isNew());
+         *      console.log(item.Title);
+         *
+         *    });
+         *
+         * </pre>
+        */        
         SPListItemObj.prototype.getProperties = function(expandProperties) {
 
             var self = this;
@@ -4974,19 +6363,23 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // getFieldValuesAsHtml
-        //
-        // Gets FieldValuesAsHtml properties of the item.
-        //
-        // This method performs a REST call to _api/web/list/item/FieldValuesAsHtml
-        // Thats different to expand the property when executes getProperties.
-        // That method makes a call like _api/web/list/item?$expand=FieldValuesAsHtml.
-        // Expanding this property does not retrieve detailed information lookup 
-        // values neither user fields. Is necessary to call this method.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#getFieldValuesAsHtml
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * This method performs a REST call to _api/web/list/item/FieldValuesAsHtml.
+         * 
+         * That is different to expand the property when executes getProperties. That method 
+         * makes a call like _api/web/list/item?$expand=FieldValuesAsHtml.
+         *
+         * if expanding this property does not retrieve detailed information lookup 
+         * values nor user fields, then it is necessary to call this method.
+         *
+         * @returns {promise} promise with the result of the REST query
+         *
+         */
         SPListItemObj.prototype.getFieldValuesAsHtml = function() {
 
             var self = this;
@@ -5029,14 +6422,18 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // getFile
-        //
-        // Gets file properties of the item and attach it to 'this' object.
-        // If the item is not a DocumentLibrary item, the REST query returns no results.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#getFile
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Gets the file property of the item and attaches it to 'this' objtect.
+         * If the item is not a DocumentLibrary document element, the REST query returns no results.
+         *
+         * @returns {promise} promise with the result of the REST query
+         *
+         */
         SPListItemObj.prototype.getFile = function() {
 
             var self = this;
@@ -5078,14 +6475,18 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // getFolder
-        //
-        // Gets folder properties of the item and attach it to 'this' object.
-        // If the item is not a DocumentLibrary item, the REST query returns no results.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#getFolder
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Gets the folder property of the item and attaches it to 'this' objtect.
+         * If the item is not a DocumentLibrary folder element, the REST query returns no results.
+         *
+         * @returns {promise} promise with the result of the REST query
+         *
+         */
         SPListItemObj.prototype.getFolder = function() {
 
             var self = this;
@@ -5128,14 +6529,18 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // getAttachments
-        //
-        // Gets the attachments of the item.
-        // If the item is a DocumentLibrary item, also gets the File and/or Folder.
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#getAttachments
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Gets all attachments of the item. This method initializes a new item property
+         * called AttachmentFiles with an array of all attached elements.
+         *
+         * @returns {promise} promise with the array of attachments.
+         *
+         */
         SPListItemObj.prototype.getAttachments = function() {
 
             var self = this;
@@ -5192,14 +6597,22 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // addAttachment
-        //
-        // Attach a file to the item.
-        //
-        // @file: A file object from the files property of the DOM element <input type="File" ... />.
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#addAttachment
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Attach a new file to the item.
+         *
+         * **Note** This method is called internally by the method `processAttachments` 
+         * when the item is saved to the server
+         * and their property item.attachments.add is an array with files to attach.
+         *
+         * @param {object} file DOM object to be attached to the item
+         * @returns {promise} promise with the result of the REST call.
+         *
+         */
         SPListItemObj.prototype.addAttachment = function(file) {
 
             var self = this;
@@ -5264,14 +6677,22 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // removeAttachment
-        //
-        // Removes a file attached to the item.
-        //
-        // @fileName: The name of the file to remove.
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#removeAttachment
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Remove an item attached file
+         *
+         * **Note** This method is called internally by the method `processAttachments
+         * when the item is saved to the server
+         * and their property item.attachments.remove is an array with files to remove.
+         *
+         * @param {string} fileName The name of the file to remove.
+         * @returns {promise} promise with the result of the REST call.
+         *
+         */
         SPListItemObj.prototype.removeAttachment = function(fileName) {
 
             var self = this;
@@ -5332,16 +6753,25 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // processAttachments
-        //
-        // Process the attachments arrays (See SPFieldAttachments directive).
-        // The attachments arrays contains the files to attach to the item and the
-        // attachments to remove from the item.
-        // After the process, the attachments arrays will be initialized.
-        //
-        // @returns: Promise with the result of the process.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#processAttachment
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * Process the attachments array (item.attachments.add and item.attachments.remove)
+         * when the item is saved to the server.
+         *
+         * The attachments array contains the collection of files to attach to the item
+         * and the attachments to remove.
+         *
+         * After the process, the attachments array will be initialized.
+         *
+         * **Note** This method is called internally by the `save method.
+         *
+         * @returns {promise} promise with the result of the process.
+         *
+         */
         SPListItemObj.prototype.processAttachments = function() {
 
             var self = this;
@@ -5453,13 +6883,43 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // save
-        //
-        // Creates this item in the list. 
-        //
-        // @returns: Promise with the result of the REST query.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#save
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * This method saves the item to the server.
+         * 
+         * If the item is new because it doesn't have an `Id, a new item is created.
+         * If the item is an existing element retrieved previously, the 
+         * element is updated with the new set of properties (fields).
+         *
+         * This method saves the item and processes the attachments arrays.
+         *
+         * After processing, the attachments array will be initialized.
+         *
+         * @returns {promise} promise with an object with the item properties
+         * 
+         * @example
+         * This example retrieves a task item from the server and 
+         * changes his state to 'Closed'
+         * <pre>
+         *
+         *    taskList.getItemById(taskId).then(function(task) {
+         *
+         *        task.Status = 'Closed';
+         *        task.save().then(function() {
+         *          
+         *            SP.UI.Notify.addNotification("Task closed!", false);
+         *
+         *        });
+         *
+         *    });
+         *
+         * </pre>
+         *
+         */
         SPListItemObj.prototype.save = function() {
 
             var self = this;
@@ -5497,7 +6957,7 @@ angular.module('ngSharePoint').factory('SPListItem',
                     
                     if (field.TypeAsString === 'Computed' || field.ReadOnlyField) {
                         // delete saveObj[field.InternalName];
-                        delete saveObj[field.EntityPropertyName];
+                        if (field.EntityPropertyName !== 'ContentTypeId') delete saveObj[field.EntityPropertyName];
                     }
 
                     // NOTA DE MEJORA!
@@ -5592,6 +7052,20 @@ angular.module('ngSharePoint').factory('SPListItem',
                         utils.cleanDeferredProperties(d);
                         angular.extend(self, d);
 
+                        /**
+                         * On a document library, if user changes the name of the 
+                         * file (by the FileLeafRef field), the .File property that
+                         * points to the File object on the server, will have a bad 
+                         * api url
+                         * This problem can solfe with a call to updateAPIUrlById method
+                         * that modifies the apiURL property correctly
+
+                        if (self.File !== undefined) {
+                            self.File.updateAPIUrlById(self.list, self.Id);
+                        }
+                        
+                        */
+
                         // After save, process the attachments.
                         self.processAttachments().then(function() {
                             def.resolve(d);
@@ -5621,14 +7095,20 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // remove
-        //
-        // Removes this item from the list. 
-        //
-        // @returns: Promise with the result of the REST query.
-        //
-        SPListItemObj.prototype.remove = function() {
+
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#remove
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * This method removes the item from the server.
+         * 
+         * @param {boolean=} permanent Indicates if the item is recycled or removed permanently.
+         * @returns {promise} promise with the result of the REST query.
+         *
+         */
+        SPListItemObj.prototype.remove = function(permanent) {
 
             var self = this;
             var def = $q.defer();
@@ -5638,9 +7118,7 @@ angular.module('ngSharePoint').factory('SPListItem',
             // Set the headers for the REST API call.
             // ----------------------------------------------------------------------------
             var headers = {
-                "Accept": "application/json; odata=verbose",
-                "X-HTTP-Method": "DELETE",
-                "IF-MATCH": "*"
+                "Accept": "application/json; odata=verbose"
             };
 
             var requestDigest = document.getElementById('__REQUESTDIGEST');
@@ -5651,12 +7129,20 @@ angular.module('ngSharePoint').factory('SPListItem',
                 headers['X-RequestDigest'] = requestDigest.value;
             }
 
+            var url = self.getAPIUrl() + '/recycle';
+
+            if (permanent === true) {
+                url = url.rtrim('/recycle');
+                headers['X-HTTP-Method'] = 'DELETE';
+                headers['IF-MATCH'] = '*';
+            }
+
 
             // Make the call.
             // ----------------------------------------------------------------------------
             executor.executeAsync({
 
-                url: self.getAPIUrl(),
+                url: url,
                 method: 'POST',
                 headers: headers,
 
@@ -5687,15 +7173,34 @@ angular.module('ngSharePoint').factory('SPListItem',
 
 
 
-        // ****************************************************************************     
-        // runWorkflow
-        //
-        // Runs the specified workflow (guid or name) over the current item.
-        // This method uses the _vti/bin/workflow.asmx service and performs a soap call
-        // to accomplish this request
-        //
-        // @returns: Promise with the result of the operation.
-        //
+        /**
+         * @ngdoc function
+         * @name ngSharePoint.SPListItem#runWorkflow
+         * @methodOf ngSharePoint.SPListItem
+         *
+         * @description
+         * This method starts a new instance of a specified workflow for the current item.
+         * 
+         * The workflow must be enabled and no other instances of the same workflow version
+         * can be running.
+         *
+         * The method allows you to specify the initiation form data.
+         *
+         * **NOTE**:
+         * Due to limitations of the SharePoint REST api, there isn't a method
+         * to run a workflow. Because of that, this method uses the SharePoint `workflow.asmx` web service.
+         * 
+         * **Limitations**:
+         * This method uses JSOM to retrieve the `FileRef` property of the item. This means
+         * that this method can't be executed outside of the SharePoint page context.
+         *
+         *
+         * @param {string} workflowName The name or the ID of the workflow that you want to run.
+         * @param {object} params Initiation workflow data. An object with all properties and 
+         * values that will be passed to the workflow.
+         * @returns {promise} promise with the result of the operation.
+         *
+         */
         SPListItemObj.prototype.runWorkflow = function(workflowName, params) {
 
             var self = this;
@@ -5717,6 +7222,7 @@ angular.module('ngSharePoint').factory('SPListItem',
                     } else {
 
                         console.error('There is no associated workflow with name ' + workflowName);
+                        def.reject('There is no associated workflow with name ' + workflowName);
                     }
                 });
 
@@ -5869,21 +7375,18 @@ angular.module('ngSharePoint').factory('SPObjectProvider',
     }
 ]);
 
-/*
-    SPRibbon - factory
-    
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPUtils
+ *
+ * @description
+ * This factory provides functionality to manage ribbon (tabs, groups, buttons).
+ *
+ * *At the moment, not all SharePoint API methods for content type objects are implemented in ngSharePoint*
+ *
+ * *Documentation is pending*
+ */
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
-
-
-
-///////////////////////////////////////
-//  SPRibbon
-///////////////////////////////////////
 
 (function() {
     
@@ -6548,38 +8051,57 @@ angular.module('ngSharePoint').factory('SPObjectProvider',
 
 })();
 
-/*
-	SPUser - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPUser
+ *
+ * @description
+ * Represents an SPUser object that is used to access all SharePoint user properties.
+ * 
+ * When you instantiate an SPUser object (with any user ID), the service is configured
+ * with a pointer to the next REST api: `http://<site-url>/_api/web/SiteUserInfoList/getItemById(userID)`.
+ * If you instantiate an SPUser object with a login name, the api is configured with the
+ * url: `http://<site-url>/_api/web/siteusers/getByLoginName(loginName)`.
+ *
+ * You should take care with this difference, because the properties returned by these 
+ * two API's are different. View the SharePoint documentation to get more information or 
+ * make some calls to the API in a browser in order to see which method you prefer.
+ *
+ * *At the moment, not all SharePoint API methods for user objects are implemented in ngSharePoint*
+ *
+ */
 
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
 
-
-
-///////////////////////////////////////
-//	SPUser
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPUser', 
 
-	['$q', 
+	['$q', 'SPObjectProvider', 'SPHttp', 
 
-	function SPUser_Factory($q) {
+	function SPUser_Factory($q, SPObjectProvider, SPHttp) {
 
 
-		// ****************************************************************************
-		// SPUser constructor
-		//
-		// @web: SPWeb instance that contains the user in SharePoint.
-		// @userData: User information. Could be:
-		//				number: user id
-		//				string: login name
-		//				object: user object
-		//
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPUser#constructor
+		 * @constructor
+		 * @methodOf ngSharePoint.SPUser
+		 * 
+		 * @description
+		 * Instantiates a new SPUser object that points to a specific SharePoint user and allows
+		 * retrieval of their properties
+		 * 
+		 * @param {SPWeb} web A valid {@link ngSharePoint.SPWeb SPWeb} object
+		 * @param {int|string} userId|loginName User id or login name of the user that will retrieve properties
+		 * @param {object} data Properties to initialize the object (optional)
+		 * 
+		 * @example
+		 * <pre>
+		 * var user = new SPUser(web, 'mydomain\user1');
+		 * // ... do something with the user object
+		 * user.getProperties().then(...);
+		 * </pre>
+		 *
+		 */
 		var SPUserObj = function(web, userId, userData) {
 
 			if (web === void 0) {
@@ -6604,96 +8126,151 @@ angular.module('ngSharePoint').factory('SPUser',
 
 			} else if (typeof userId === 'string') {
 
-				this.apiUrl = '/siteusers/getByLoginName(@v)?@v=\'' + userId + '\'';
+				this.apiUrl = '/siteusers/getByLoginName(@v)?@v=\'' + encodeURIComponent(userId) + '\'';
 
 			}
 
-			// Initializes the SharePoint API REST url for the group.
+			// Initializes the SharePoint API REST url for the user.
 			this.apiUrl = web.apiUrl + this.apiUrl;
 
 			// Init userProperties (if exists)
 			if (userData !== void 0) {
 				utils.cleanDeferredProperties(userData);
 				angular.extend(this, userData);
+				if (this.LoginName === void 0 && this.Name !== void 0) {
+					this.LoginName = this.Name;
+				}
 			}
 		};
 
 
-		// ****************************************************************************
-		// getProperties
-		//
-		// Gets user properties and attach it to 'this' object.
-		//
-		// @returns: Promise with the result of the REST query.
-		//
+
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPUser#getProperties
+		 * @constructor
+		 * @methodOf ngSharePoint.SPUser
+		 * 
+		 * @description
+		 * Makes a call to the SharePoint server and gets all their properties.
+		 * The current object is extended with all recovered properties. This means that when you have executed this 
+		 * method, you will have direct access to their values. ex: `user.IsSiteAdmin`, `user.LoginName`, `user.Title`, etc.
+		 * 
+		 * For a complete list of user properties go to Microsoft 
+		 * SharePoint {@link https://msdn.microsoft.com/EN-US/library/dn531432.aspx#bk_UserProperties api reference}.
+		 *
+		 * SharePoint REST api only returns certain user properties that have primary values. Properties with complex structures
+		 * like user `Groups` are not returned directly by the api and you need to extend the query
+		 * to retrieve their values. You can accomplish this with the `query` param.
+		 *
+		 * @param {object} query With this parameter you can specify which web properties you want to extend and to retrieve from the server.
+		 * @returns {promise} promise with an object with all user properties
+		 * 
+		 * @example
+		 * <pre>
+		 * // _spContextInfo.userId contains the ID of the current loged user. We can use
+		 * // this SharePoint environtment variable to retrieve current user information
+		 * var currentUser = new SPUser(currentWeb, _spPageContextInfo.userId);
+		 * currentUser.getProperties().then(function() {
+	     * 
+	     *   if (currentUser.IsSiteAdmin) {
+		 *      // ...
+		 *   }
+		 * });
+		 * </pre>
+		 */
 		SPUserObj.prototype.getProperties = function(query) {
 
-			var self = this;
-			var def = $q.defer();
-			var executor = new SP.RequestExecutor(self.web.url);
+			var self = this,
+				url = self.apiUrl + utils.parseQuery(query);
 
-			executor.executeAsync({
+			return SPHttp.get(url).then(function(data) {
 
-				url: self.apiUrl + utils.parseQuery(query),
-				method: 'GET', 
-				headers: { 
-					"Accept": "application/json; odata=verbose"
-				}, 
+				utils.cleanDeferredProperties(data);
+				
+				angular.extend(self, data);
+				self.LoginName = self.Name;
 
-				success: function(data) {
+				return self;
 
-					var d = utils.parseSPResponse(data);
-					utils.cleanDeferredProperties(d);
-					
-					angular.extend(self, d);
-
-					def.resolve(self);
-				}, 
-
-				error: function(data, errorCode, errorMessage) {
-
-					var err = utils.parseError({
-						data: data,
-						errorCode: errorCode,
-						errorMessage: errorMessage
-					});
-
-					def.reject(err);
-				}
 			});
-
-			return def.promise;
 
 		}; // getProperties
 
 
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPUser#getGroups
+	     * @methodOf ngSharePoint.SPUser
+	     *
+	     * @description
+	     * Retrieves the asociated user groups and returns an
+	     * array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getCurrentUser().then(function(user) {
+		 *
+		 *		  user.getGropus().then(function(groups) {
+		 *       
+		 *        	angular.forEach(groups, function(group) {
+	     *           
+	     *           	console.log(group.Title + ' ' + group.Description);
+		 *        	});
+		 *		  });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
+		SPUserObj.prototype.getGroups = function() {
+
+			var self = this;
+
+			var url = self.web.apiUrl + '/getUserById(' + self.Id + ')/Groups';
+			return SPHttp.get(url).then(function(data) {
+
+				var groups = [];
+
+				angular.forEach(data, function(groupProperties) {
+					var spGroup = SPObjectProvider.getSPGroup(self.web, groupProperties.Id, groupProperties);
+					groups.push(spGroup);
+				});
+
+				self.Groups = groups;
+				return groups;
+
+			});
+
+		};
 
 
-		// Returns the SPUserObj class
+				// Returns the SPUserObj class
 		return SPUserObj;
 
 	}
 ]);
 
-/*
-    SPUtils - factory
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPUtils
+ *
+ * @description
+ * This factory provides helpers and utilities.
+ *
+ * *Documentation is pending*
+ */
 
-    Pau Codina (pau.codina@kaldeera.com)
-    Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
-    Copyright (c) 2014
-    Licensed under the MIT License
-*/
+angular.module('ngSharePoint').factory('SPUtils',
 
-
-
-///////////////////////////////////////
-//  SPUtils
-///////////////////////////////////////
-
-angular.module('ngSharePoint').factory('SPUtils', 
-
-    ['SPConfig', '$q', '$http', '$injector', 'ODataParserProvider', 
+    ['SPConfig', '$q', '$http', '$injector', 'ODataParserProvider',
 
     function SPUtils_Factory(SPConfig, $q, $http, $injector, ODataParserProvider) {
 
@@ -6720,6 +8297,12 @@ angular.module('ngSharePoint').factory('SPUtils',
 
                 var deferred = $q.defer();
                 var self = this;
+
+                if (window.SP === undefined) {
+
+                    // ng-SharePoint is running outside of SharePoint site
+                    isSharePointReady = true;
+                }
 
                 if (isSharePointReady) {
 
@@ -6768,7 +8351,7 @@ angular.module('ngSharePoint').factory('SPUtils',
 
                                     loadResourcePromises.push(self.loadResourceFile(filename));
                                 });
-                                
+
                             }
 
                             // Resolve resource promises
@@ -6822,7 +8405,7 @@ angular.module('ngSharePoint').factory('SPUtils',
                         data = data.replace(/e - mail|e-mail/g, 'email');
                         data = data.replace(/e - Mail|e-Mail/g, 'email');
                         data = data.replace(/tty - TDD|tty-TDD/g, 'tty_TDD');
-                        
+
                         try {
                             var _eval = eval; // Fix jshint warning: eval can be harmful.
                             _eval(data);
@@ -6902,7 +8485,7 @@ angular.module('ngSharePoint').factory('SPUtils',
                     }
 
                     if (queryInfo.pagingInfo) {
-                        var position = new SP.ListItemCollectionPosition(); 
+                        var position = new SP.ListItemCollectionPosition();
                         position.set_pagingInfo(queryInfo.pagingInfo);
                         camlQuery.set_listItemCollectionPosition(position);
                     }
@@ -6941,14 +8524,15 @@ angular.module('ngSharePoint').factory('SPUtils',
             },
 
 
-            refreshDigestValue: function() {
+            refreshDigestValue: function(baseUrl) {
 
                 var self = this;
                 var deferred = $q.defer();
 
+                var url = (baseUrl || _spPageContextInfo.webAbsoluteUrl) + '/_api/contextinfo';
                 $http({
 
-                    url: _spPageContextInfo.webAbsoluteUrl + "/_api/contextinfo",
+                    url: url,
                     method: "POST",
                     headers: { "Accept": "application/json; odata=verbose"}
 
@@ -6997,7 +8581,7 @@ angular.module('ngSharePoint').factory('SPUtils',
             },
 
 
-            getUserId: function(loginName) {
+            getUserInfoByLoginName: function(loginName) {
 
                 var self = this;
                 var deferred = $q.defer();
@@ -7007,7 +8591,8 @@ angular.module('ngSharePoint').factory('SPUtils',
                 ctx.load(user);
                 ctx.executeQueryAsync(function() {
 
-                    deferred.resolve(user.get_id());
+                    var objectData = user.get_objectData();
+                    deferred.resolve(objectData.get_properties());
 
                 }, function(sender, args) {
 
@@ -7042,7 +8627,7 @@ angular.module('ngSharePoint').factory('SPUtils',
                     });
                 });
 
-                return deferred.promise;            
+                return deferred.promise;
             },
 
 
@@ -7052,16 +8637,16 @@ angular.module('ngSharePoint').factory('SPUtils',
 
                 if (window.DOMParser) {
 
-                    var parser = new window.DOMParser();          
+                    var parser = new window.DOMParser();
                     xmlDoc = parser.parseFromString(xmlDocStr, "text/xml");
 
                 } else {
-                
+
                     // IE :(
                     if(xmlDocStr.indexOf("<?") === 0) {
                         xmlDocStr = xmlDocStr.substr(xmlDocStr.indexOf("?>") + 2);
                     }
-                
+
                     xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
                     xmlDoc.async = "false";
                     xmlDoc.loadXML(xmlDocStr);
@@ -7091,9 +8676,14 @@ angular.module('ngSharePoint').factory('SPUtils',
                     });
 
                     if (form !== void 0) {
-                        var regionalSettingsSelect = form.querySelector('#ctl00_PlaceHolderMain_ctl02_ctl01_DdlwebLCID');
-                        var selectedOption = regionalSettingsSelect.querySelector('[selected]');
-                        lcid = selectedOption.value;
+                        if (form.querySelector('#ctl00_PlaceHolderMain_ctl08_ChkFollowWebRegionalSettings').checked) {
+                            // user inherits web settings
+                            lcid = _spPageContextInfo.currentLanguage;
+                        } else {
+                            var regionalSettingsSelect = form.querySelector('#ctl00_PlaceHolderMain_ctl02_ctl01_DdlwebLCID');
+                            var selectedOption = regionalSettingsSelect.querySelector('[selected]');
+                            lcid = selectedOption.value;
+                        }
                     }
 
 
@@ -7107,7 +8697,7 @@ angular.module('ngSharePoint').factory('SPUtils',
 
 
             getWebById: function(webId) {
-                
+
                 var self = this;
                 var deferred = $q.defer();
 
@@ -7134,15 +8724,10 @@ angular.module('ngSharePoint').factory('SPUtils',
 
 
             /**
-            // ****************************************************************************     
-            // getFileBinary
-            //
-            // Converts a file object to binary data string.
-            //
-            // @file: A file object from the files property of the DOM element <input type="File" ... />.
-            // @returns: Promise with the binary data.
-            //
-            */
+             * Converts a file object to binary data string.
+             * @param {file} A file object from the files property of the DOM element <input type="File" ... />.
+             * @returns {promise} Promise with the binary data.
+             */
             getFileBinary: function(file) {
 
                 var self = this;
@@ -7192,36 +8777,63 @@ angular.module('ngSharePoint').factory('SPUtils',
     }
 ]);
 
-/*
-	SPWeb - factory
-	
-	Pau Codina (pau.codina@kaldeera.com)
-	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
-	Copyright (c) 2014
-	Licensed under the MIT License
-*/
+/**
+ * @ngdoc object
+ * @name ngSharePoint.SPWeb
+ *
+ * @description
+ * Represents an SPWeb object that is used to access to all SharePoint web site properties, lists and users.
+ * 
+ * When you instantiate an SPWeb object (with any SharePoint site url), the service is configured
+ * with a pointer to a REST API of the site `http://<site url>/_api/web`.
+ *
+ * You musn't instantiate this object directly. You must use {@link ngSharePoint.SharePoint SharePoint} service
+ * to get SPWeb instances.
+ *
+ * If you instantiate a new SPWeb object, you have an object that points to the SharePoint web api. Then, you can access to all
+ * web properties or get lists, and users through its methods.
+ *
+ * *At the moment, not all SharePoint API methods for web objects are implemented in ngSharePoint*
+ *
+ * @requires ngSharePoint.SPUtils
+ * @requires ngSharePoint.SPList
+ * @requires ngSharePoint.SPUser
+ * @requires ngSharePoint.SPFolder
+ * 
+ */
 
-
-
-///////////////////////////////////////
-//	SPWeb
-///////////////////////////////////////
 
 angular.module('ngSharePoint').factory('SPWeb', 
 
-	['$q', 'SPUtils', 'SPList', 'SPUser',
+	['$q', 'SPHttp', 'SPUtils', 'SPList', 'SPUser', 'SPGroup', 'SPFolder',
 
-	function SPWeb_Factory($q, SPUtils, SPList, SPUser) {
+	function SPWeb_Factory($q, SPHttp, SPUtils, SPList, SPUser, SPGroup, SPFolder) {
 
 		'use strict';
 
 
-		// ****************************************************************************
-		// SPWeb constructor
-		//
-		// @url: The url of the web you want to instanciate.
-		//
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPWeb#constructor
+		 * @constructor
+		 * @methodOf ngSharePoint.SPWeb
+		 * 
+		 * @description
+		 * Instantiates a new SPWeb object that points to a specific SharePoint site.
+		 * 
+		 * @param {sring=} url|webID url or web ID. If this parameter is not provided, the object is initialized with the current web
+		 * @returns {promise} with the SPWeb object correctly instantiated
+		 * 
+		 * @example
+		 * <pre>
+		 * new SPWeb('/mySite').then(function(web) {
+		 *   // ... do something with the web object
+		 * })
+		 * </pre>
+		 *
+		 * All method calls to this `SPWeb` object will refer to the content of this site (lists, users, ...)
+		 */
 		var SPWebObj = function(url) {
 
 			this.url = url;
@@ -7232,12 +8844,12 @@ angular.module('ngSharePoint').factory('SPWeb',
 
 
 
-		// ****************************************************************************
-		// getApiUrl
-		//
-		// @returns: Promise that will be resolved after the initialization of the 
-		//			 SharePoint web API REST url endpoint.
-		//
+		/**
+		 * This method is called when a new SPWeb object is instantiated.
+		 * The proupose of this method is to resolve the correct api url of the web, depending on `url` property
+		 *
+		 * @returns {promise} that will be resolved after the initialization of the SharePoint web API REST url endpoint
+		 */
 		SPWebObj.prototype.getApiUrl = function() {
 
 			var self = this;
@@ -7253,7 +8865,11 @@ angular.module('ngSharePoint').factory('SPWeb',
 				// If not 'url' parameter provided in the constructor, gets the url of the current web.
 				if (this.url === void 0) {
 
-					this.url = _spPageContextInfo.webServerRelativeUrl;
+					if (window._spPageContextInfo !== undefined) {
+						this.url = window._spPageContextInfo.webServerRelativeUrl;
+					} else {
+						this.url = '/';
+					}
 					this.apiUrl = this.url.rtrim('/') + '/_api/web';
 					def.resolve(this);
 
@@ -7287,139 +8903,188 @@ angular.module('ngSharePoint').factory('SPWeb',
 
 
 
-
-		// ****************************************************************************		
-		// getProperties
-		//
-		// Gets web properties and attach it to 'this' object.
-		//
-		// http://msdn.microsoft.com/es-es/library/office/jj164022(v=office.15).aspx
-		// @returns: Promise with the result of the REST query.
-		//
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPWeb#getProperties
+		 * @methodOf ngSharePoint.SPWeb
+		 * 
+		 * @description
+		 * Makes a call to the SharePoint server and retrieves all web properties.
+		 * The current object is extended with all retrieved properties. This means that when you have executed this 
+		 * method, you will have direct access to these values. ex: `web.Title`, `web.Language`, etc.
+		 * 
+		 * For a complete list of web properties go to Microsoft 
+		 * SharePoint {@link https://msdn.microsoft.com/en-us/library/dn499819.aspx#bk_WebProperties api reference}
+		 *
+		 * SharePoint REST api only returns certain web properties that have primary values. Properties with complex structures
+		 * like `SiteGroups`, `Lists` or `ContentTypes` are not returned directly by the api and you will need to extend the query
+		 * to retrieve their values. You can accomplish this with the `query` param.
+		 *
+		 * @param {object} query With this parameter you can specify which web properties you want to extend and to retrieve from the server.
+		 * By default `RegionalSettings/TimeZone` properties are extended.
+		 *
+		 * @returns {promise} promise with an object with all web properties
+		 * 
+		 * @example
+		 * This example shows how to retrieve the web properties:
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getProperties().then(function(properties) {
+		 *       
+		 *        // at this point we have all web properties
+		 *        alert(properties.Title);
+		 *
+		 *        // or you can do
+		 *        alert(web.Title);
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 *
+		 * This example shows how to retrieve site groups:
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getProperties({$expand: 'SiteGroups'}).then(function() {
+		 *       
+		 *        angular.forEach(web.SiteGroups.results, function(group) {
+	     *           
+	     *           console.log(group.Title + ' ' + group.Description);
+		 *        });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
 		SPWebObj.prototype.getProperties = function(query) {
 
 			var self = this;
-			var def = $q.defer();
 			var defaultExpandProperties = 'RegionalSettings/TimeZone';
 
-			SPUtils.SharePointReady().then(function() {
-
-				var executor = new SP.RequestExecutor(self.url);
+			return SPUtils.SharePointReady().then(function() {
 
 				if (query) {
-					query.$expand = defaultExpandProperties + (query.$expand ? ', ' + query.$expand : '');
+					query.$expand = defaultExpandProperties + (query.$expand ? ',' + query.$expand : '');
 				} else {
 					query = { 
 						$expand: defaultExpandProperties
 					};
 				}
 
-				executor.executeAsync({
+				var url = self.apiUrl + utils.parseQuery(query);
 
-					url: self.apiUrl + utils.parseQuery(query),
-					method: 'GET', 
-					headers: { 
-						"Accept": "application/json; odata=verbose"
-					}, 
+				return SPHttp.get(url).then(function(data) {
 
-					success: function(data) {
+					utils.cleanDeferredProperties(data);
+					angular.extend(self, data);
 
-						var d = utils.parseSPResponse(data);
-						utils.cleanDeferredProperties(d);
+					return data;
 						
-						angular.extend(self, d);
-						def.resolve(d);
-						
-					}, 
-
-					error: function(data, errorCode, errorMessage) {
-
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
-
-						def.reject(err);
-					}
 				});
 			});
-
-			return def.promise;
 
 		}; // getProperties
 
 
 
-		// ****************************************************************************		
-		// getLists
-		//
-		// Gets a SPList collection (SPList factory)
-		//
-		// @listName: String or Guid with the name or GUID of the list.
-		// @returns: array of SPList objects.
-		//
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getLists
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves all SharePoint lists and document libraries from the server and returns an
+	     * array of {@link ngSharePoint.SPList SPList} objects.
+	     *
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPList SPList} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getLists().then(function(lists) {
+		 *       
+		 *        angular.forEach(lists, function(list) {
+	     *           
+	     *           console.log(list.Title + ' ' + list.EnableAttachments);
+		 *        });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
 		SPWebObj.prototype.getLists = function() {
 
 			var self = this;
-			var def = $q.defer();
 
+			return SPUtils.SharePointReady().then(function() {
 
-			SPUtils.SharePointReady().then(function() {
+				var url = self.apiUrl + '/Lists';
+				return SPHttp.get(url).then(function(data) {
 
-				var executor = new SP.RequestExecutor(self.url);
+					var lists = [];
 
-				executor.executeAsync({
+					angular.forEach(data, function(listProperties) {
+						var spList = new SPList(self, listProperties.Id, listProperties);
+						lists.push(spList);
+					});
 
-					url: self.apiUrl + '/Lists',
-					method: 'GET', 
-					headers: { 
-						"Accept": "application/json; odata=verbose"
-					}, 
+					return lists;
 
-					success: function(data) {
-
-						var d = utils.parseSPResponse(data);
-						var lists = [];
-
-						angular.forEach(d, function(listProperties) {
-							var spList = new SPList(self, listProperties.Id, listProperties);
-							lists.push(spList);
-						});
-
-						def.resolve(lists);
-						// def.resolve(utils.parseSPResponse(data));
-					}, 
-
-					error: function(data, errorCode, errorMessage) {
-
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
-
-						def.reject(err);
-					}
 				});
 
 			});
-
-
-            return def.promise;
 
 		};
 
 
 
-		// ****************************************************************************		
-		// getList
-		//
-		// Gets a SPList object (SPList factory)
-		//
-		// @listName: String or Guid with the name or GUID of the list.
-		// @returns: SPList instance.
-		//
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getList
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves an instance of the specified SharePoint list or document library from the server
+	     *
+	     * @param {string|GUID} name The name or the GUID of the list
+	     *
+         * Also, you can specify "UserInfoList" to refer to the system list with all site users.
+         * 
+	     * @returns {promise} promise with an {@link ngSharePoint.SPList SPList} object
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getList('Tasks').then(function(taskList) {
+		 *       
+		 *        taskList.getListItems();
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 *
+		 * You can access to any list with their GUID.
+		 * <pre>
+		 *   
+		 *    web.getList('12fa20d2-1bb8-489c-bea3-b81797ddfeaf').then(function(list) {
+	     *        list.getProperties().then(function() {
+		 *		     alert(list.Title);
+		 *		  });
+		 *    });
+		 * </pre>
+		 *
+		*/
 		SPWebObj.prototype.getList = function(listName) {
 
 			var def = $q.defer();
@@ -7430,13 +9095,64 @@ angular.module('ngSharePoint').factory('SPWeb',
 
 
 
-		// ****************************************************************************	
-		// getCurrentUser
-		//
-		// Gets a SPUser object (SPUser factory)
-		//
-		// @returns: SPUser instance.
-		//
+		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPWeb#getRootFolder
+		 * @methodOf ngSharePoint.SPWeb
+		 *
+		 * @description
+		 * Use this method to get a reference of the web root folder.
+		 *
+		 * @returns {promise} promise with a {@link ngSharePoint.SPFolder SPFolder} object
+		 *
+		*/
+		SPWebObj.prototype.getRootFolder = function() {
+
+            var self = this,
+            	rootFolder = this.RootFolder;
+
+            if (rootFolder === void 0) {
+
+            	var url = self.apiUrl + '/RootFolder';
+
+            	rootFolder = SPHttp.get(url).then(function(data) {
+
+                    self.RootFolder = new SPFolder(self, data.ServerRelativeUrl, data);
+                    self.RootFolder.web = self;
+
+                    return self.RootFolder;
+
+            	});
+            }
+
+            return $q.when(rootFolder);
+
+		};
+
+
+
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getCurrentUser
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves the current user from SharePoint
+	     *
+	     * @returns {promise} promise with an {@link ngSharePoint.SPUser SPUser} object
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 * // previously initiated web object ...
+		 * web.getCurrentUser().then(function(user) {
+		 *   
+		 *    if (user.IsSiteAdmin) {
+		 *      // some stuff ... 
+		 *    }
+		 * });
+		 * </pre>
+		*/
 		SPWebObj.prototype.getCurrentUser = function() {
 
 			var def = $q.defer();
@@ -7447,9 +9163,32 @@ angular.module('ngSharePoint').factory('SPWeb',
 				def.resolve(this.currentUser);
 
 			} else {
-				this.getUserById(_spPageContextInfo.userId).then(function(user) {
-					self.currentUser = user;
-					def.resolve(user);
+
+				var solveUserId;
+
+				if (window._spPageContextInfo !== undefined) {
+
+					solveUserId = window._spPageContextInfo.userId;
+
+				} else {
+
+					var url = this.apiUrl + '/currentUser';
+
+					solveUserId = SPHttp.get(url).then(function(data) {
+
+						return data.Id;
+					});
+				}
+
+				$q.when(solveUserId).then(function(userId) {
+
+					self.getUserById(userId).then(function(user) {
+						self.currentUser = user;
+						def.resolve(user);
+					}, function(err) {
+						def.reject(err);
+					});
+
 				});
 			}
 
@@ -7458,39 +9197,92 @@ angular.module('ngSharePoint').factory('SPWeb',
 
 
 
-		// ****************************************************************************	
-		// getUserById
-		//
-		// Gets a SPUser object (SPUser factory)
-		//
-		// @userId: Id of the user to search
-		// @returns: SPUser instance.
-		//
-		SPWebObj.prototype.getUserById = function(userId) {
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getUserById
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves a specified user from SharePoint
+	     *
+	     * @param {int} userID User ID of the desired user to retrieve
+	     * @returns {promise} promise with a {@link ngSharePoint.SPUser SPUser} object
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 * // previously initiated web object ...
+		 * web.getUser(12).then(function(user) {
+		 *   
+		 *    if (user.IsSiteAdmin) {
+		 *      // some stuff ... 
+		 *    }
+		 * });
+		 * </pre>
+		*/
+		SPWebObj.prototype.getUserById = function(userID) {
 
-			var def = $q.defer();
-
-			new SPUser(this, userId).getProperties().then(function(user) {
-				def.resolve(user);
-			});
-
-			return def.promise;
+			return new SPUser(this, userID).getProperties();
 		};
 
 
 
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getSiteGroups
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves all SharePoint site groups for the current web and returns an
+	     * array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getSiteGroups().then(function(groups) {
+		 *       
+		 *        angular.forEach(groups, function(group) {
+	     *           
+	     *           console.log(group.Title + ' ' + group.Description);
+		 *        });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
+		SPWebObj.prototype.getSiteGroups = function() {
 
-		// ****************************************************************************		
-		// staticMethod
-		//
-		// Example of static method
-		//
-		SPWebObj.staticMethod = function() {
+			var self = this,
+				siteGroups = self.Groups;
 
-			// You can access this method directly from the class without the need of create an instance.
-			// Example: SPWeb.staticMethod();
-			//
-			// Inside this method you don't have access to the 'this' object (instance).
+			if (siteGroups === void 0) {
+
+				siteGroups = SPUtils.SharePointReady().then(function() {
+
+					var url = self.apiUrl + '/SiteGroups';
+					return SPHttp.get(url).then(function(data) {
+
+						var groups = [];
+
+						angular.forEach(data, function(groupProperties) {
+							var spGroup = new SPGroup(self, groupProperties.Id, groupProperties);
+							groups.push(spGroup);
+						});
+
+						self.Groups = groups;
+						return groups;
+
+					});
+				});
+			}
+
+			return $q.when(siteGroups); 
+
 
 		};
 
@@ -7597,6 +9389,14 @@ angular.module('ngSharePoint').factory('SPWeb',
             // ****************************************************************************
             // Private methods
             //
+
+
+            function allowRedirect() {
+
+                if (attrs.noredirect !== void 0) return false;
+                return spformToolbarController.allowRedirect;
+            }
+
 
 
             function processAction() {
@@ -7800,7 +9600,7 @@ angular.module('ngSharePoint').factory('SPWeb',
 
                         //var redirectUrl = scope.redirectUrl;
 
-                        if (redirectUrl) {
+                        if (redirectUrl && allowRedirect()) {
 
                             var item = scope.formCtrl.getItem();
                             var list = item.list;
@@ -8012,7 +9812,7 @@ angular.module('ngSharePoint').directive('spIf',
 
 /*
 	SPFieldAttachments - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -8026,7 +9826,7 @@ angular.module('ngSharePoint').directive('spIf',
 //	SPFieldAttachments
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldAttachments', 
+angular.module('ngSharePoint').directive('spfieldAttachments',
 
 	['SPFieldDirective',
 
@@ -8041,7 +9841,7 @@ angular.module('ngSharePoint').directive('spfieldAttachments',
 				mode: '@'
 			},
 			templateUrl: 'templates/form-templates/spfield-control-loading.html',
-			
+
 
 			link: function($scope, $element, $attrs, controllers) {
 
@@ -8059,19 +9859,12 @@ angular.module('ngSharePoint').directive('spfieldAttachments',
 
 					},
 
-<<<<<<< HEAD
-					watchValueFn: function(newValue, oldValue) {
-=======
 					renderFn: function(newValue, oldValue) {
->>>>>>> Pau
 
 						// Check if the old and new values really differ.
 						if (newValue === null && oldValue === undefined) return;
 
-<<<<<<< HEAD
-=======
-						
->>>>>>> Pau
+
 
 						// Show loading animation.
 						directive.setElementHTML('<div><img src="/_layouts/15/images/loadingcirclests16.gif" alt="" /></div>');
@@ -8188,9 +9981,9 @@ angular.module('ngSharePoint').directive('spfieldAttachments',
 
 
 
-angular.module('ngSharePoint').directive('fileSelect', 
+angular.module('ngSharePoint').directive('fileSelect',
 
-	['$parse', '$timeout', 'SPRibbon', 
+	['$parse', '$timeout', 'SPRibbon',
 
 	function fileSelect_DirectiveFactory($parse, $timeout, SPRibbon) {
 
@@ -8198,7 +9991,7 @@ angular.module('ngSharePoint').directive('fileSelect',
 
 			var fn = $parse($attrs.fileSelect);
 			$element.removeAttr('file-select');
-			
+
 
 			if ($element[0].tagName.toLowerCase() !== 'input' || ($element.attr('type') && $element.attr('type').toLowerCase() !== 'file')) {
 
@@ -8276,7 +10069,7 @@ angular.module('ngSharePoint').directive('fileSelect',
 
             	SPRibbon.attachFileElement = $element;
                 SPRibbon.registerCommand(
-                	'Ribbon.ListForm.Edit.Actions.AttachFile', 
+                	'Ribbon.ListForm.Edit.Actions.AttachFile',
                 	function() {
                 		SPRibbon.attachFileElement.click();
                 	}, true);
@@ -8295,7 +10088,7 @@ angular.module('ngSharePoint').directive('fileSelect',
 
 /*
 	SPFieldBoolean - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -8309,7 +10102,7 @@ angular.module('ngSharePoint').directive('fileSelect',
 //	SPFieldBoolean
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldBoolean', 
+angular.module('ngSharePoint').directive('spfieldBoolean',
 
 	['SPFieldDirective',
 
@@ -8324,20 +10117,39 @@ angular.module('ngSharePoint').directive('spfieldBoolean',
 				mode: '@'
 			},
 			templateUrl: 'templates/form-templates/spfield-control.html',
-			
+
 
 			link: function($scope, $element, $attrs, controllers) {
 
 
 				var directive = {
-					
+
 					fieldTypeName: 'boolean',
 					replaceAll: false,
 
 					renderFn: function() {
-						
+
 						$scope.value = $scope.modelCtrl.$viewValue;
 						$scope.displayValue = $scope.modelCtrl.$viewValue ? STSHtmlEncode(Strings.STS.L_SPYes) : STSHtmlEncode(Strings.STS.L_SPNo);
+					},
+
+					formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+						if ($scope.lastValue !== $scope.value) {
+							// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+							$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+							$scope.lastValue = viewValue;
+						}
+
+						return viewValue;
 					}
 				};
 
@@ -8541,12 +10353,44 @@ angular.module('ngSharePoint').directive('spfieldCalculated',
 
 /*
     SPFieldChoice - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
     Copyright (c) 2014
     Licensed under the MIT License
+
+
+
+    Minimal Schema definition and extended properties:
+
+    FieldXXXX: {
+        TypeAsString: 'Choice',
+        FillInChoice: false,
+        EditFormat: 0,          // 0 - DropDown, 1 - RadioButton
+        Choices: {              // ListQuery apply if exists and removes current results
+            ListQuery: {
+                Web: '/path/to/valid/web',  // Optional (by default gets the curerent web)
+                List: 'ListName',
+                Field: 'Title',             // Optional (by default gets the 'Title')
+                Query: {                    // Optional. All query properties of OData query operations are valid
+                                            // https://msdn.microsoft.com/en-us/library/office/fp142385%28v=office.15%29.aspx
+                    $orderBy: 'Title'
+                }
+            },
+            // If you don't want to make a list query, you can specify one custom array of options
+            results: ['Activity 1', 'Activity 2', 'Activity 3', '...']
+        }
+    }
+
+    **NOTE**
+    Query $filter value can include references to other item fields.
+    This references are evaluated and used to retrieve dropDownValues.
+    Example:
+        $filter: "status eq 'Aprobado' and userName eq '{requiredBy.Title}'",
+
+    Choice field watch for requiredBy changes, refresh the ListQuery sentence
+    and retrieves new values.
 */
 
 
@@ -8555,11 +10399,11 @@ angular.module('ngSharePoint').directive('spfieldCalculated',
 //  SPFieldChoice
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldChoice', 
+angular.module('ngSharePoint').directive('spfieldChoice',
 
-    ['SPFieldDirective',
+    ['SharePoint', 'SPFieldDirective', '$q', '$timeout',
 
-    function spfieldChoice_DirectiveFactory(SPFieldDirective) {
+    function spfieldChoice_DirectiveFactory(SharePoint, SPFieldDirective, $q, $timeout) {
 
         var spfieldChoice_DirectiveDefinitionObject = {
 
@@ -8570,19 +10414,30 @@ angular.module('ngSharePoint').directive('spfieldChoice',
                 mode: '@'
             },
             templateUrl: 'templates/form-templates/spfield-control.html',
-            
+
 
             link: function($scope, $element, $attrs, controllers) {
 
 
                 var directive = {
-                    
+
                     fieldTypeName: 'choice',
                     replaceAll: false,
 
                     init: function() {
 
-                        $scope.choices = $scope.schema.Choices.results;
+                        if ($scope.schema.Choices.ListQuery !== undefined) {
+
+                            $scope.choices = [];
+                            if ($scope.currentMode === 'edit') {
+                                getResultsFromListQuery($scope.schema.Choices.ListQuery);
+                            }
+
+                        } else {
+
+                            $scope.choices = $scope.schema.Choices.results;
+                        }
+
                         $scope.chooseText = STSHtmlEncode(Strings.STS.L_Choose_Text);
                         $scope.choiceFillInDisplayText = STSHtmlEncode(Strings.STS.L_ChoiceFillInDisplayText);
                         $scope.selectedOption = null;
@@ -8606,7 +10461,9 @@ angular.module('ngSharePoint').directive('spfieldChoice',
 
                                 case 0:
                                     // Dropdown
-                                    $scope.dropDownValue = $scope.value;
+                                    if ($scope.choices !== void 0) {
+                                        $scope.dropDownValue = $scope.value;
+                                    }
                                     $scope.selectedOption = 'DropDownButton';
                                     break;
 
@@ -8617,11 +10474,97 @@ angular.module('ngSharePoint').directive('spfieldChoice',
                             }
 
                         }
+                    },
+
+                    formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+                        var data;
+                        if ($scope.items !== void 0) {
+                            angular.forEach($scope.items, function(item) {
+                                if (item.campo14 === viewValue) data = item;
+                            });
+                        }
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue, data);
+						$scope.lastValue = viewValue;
+
+						return viewValue;
                     }
+
                 };
-                
+
 
                 SPFieldDirective.baseLinkFn.apply(directive, arguments);
+
+
+                // ****************************************************************************
+				// Check for dependences.
+				//
+                if ($scope.currentMode === 'edit' && $scope.schema.Choices.ListQuery !== undefined) {
+                    if ($scope.schema.Choices.ListQuery.Query !== void 0) {
+                        if ($scope.schema.Choices.ListQuery.Query.$filter !== void 0) {
+
+                            $scope.schema.Choices.ListQuery.Query.originalFilter = $scope.schema.Choices.ListQuery.Query.$filter;
+                            $scope.dependences = [];
+
+                            var EXPRESSION_REGEXP = /{(\w+\W*[\w\s./\[\]\(\)]+)}(?!})/g;
+                            EXPRESSION_REGEXP.lastIndex = 0;
+                            var matches;
+
+                            while ((matches = EXPRESSION_REGEXP.exec($scope.schema.Choices.ListQuery.Query.$filter))) {
+
+                                var dependenceField, dependenceValue;
+
+                                var match = matches[1].split('.');
+                                if (match.length > 1) {
+                                    dependenceField = match[0];
+                                    dependenceValue = match[1];
+                                } else {
+                                    dependenceField = match[0];
+                                    dependenceValue = undefined;
+                                }
+
+                                $scope.dependences.push({
+                                    field: dependenceField,
+                                    fieldValue: dependenceValue
+                                });
+
+
+                            }
+
+                            angular.forEach($scope.dependences, function(dependence) {
+
+                                $scope.$on(dependence.field + '_changed', function(evt, newValue, oldValue, params) {
+
+                                    angular.forEach($scope.dependences, function(dependence) {
+
+                                        if (evt.name === dependence.field + '_changed') {
+
+                                            if (dependence.fieldValue !== undefined) {
+                                                dependence.value = (params !== undefined) ? params[dependence.fieldValue] : undefined;
+                                            } else {
+                                                dependence.value = newValue;
+                                            }
+                                        }
+                                    });
+
+                                    $scope.dropDownValue = undefined;
+                                    $scope.value = undefined;
+                                    $scope.modelCtrl.$setViewValue($scope.dropDownValue);
+                                    getResultsFromListQuery($scope.schema.Choices.ListQuery);
+                                });
+                            });
+                        }
+
+                    }
+                }
 
 
                 ///////////////////////////////////////////////////////////////////////////////
@@ -8644,7 +10587,6 @@ angular.module('ngSharePoint').directive('spfieldChoice',
                     if ($scope.selectedOption == 'FillInButton') {
 
                         $scope.modelCtrl.$setViewValue($scope.fillInChoiceValue);
-//                        $scope.value = $scope.fillInChoiceValue;
 
                         var fillInChoiceElement = document.getElementById($scope.schema.InternalName + '_' + $scope.schema.Id + '_$FillInChoice');
 
@@ -8653,7 +10595,7 @@ angular.module('ngSharePoint').directive('spfieldChoice',
                             fillInChoiceElement.focus();
 
                         }
-                        
+
                     } else {
 
                         switch($scope.schema.EditFormat) {
@@ -8680,8 +10622,12 @@ angular.module('ngSharePoint').directive('spfieldChoice',
 
                     $scope.selectedOption = 'DropDownButton';
                     $scope.modelCtrl.$setViewValue($scope.dropDownValue);
-                    $scope.value = $scope.dropDownValue;
 
+                    if ($scope.dropDownValue === undefined) {
+                        $scope.formCtrl.fieldValueChanged($scope.schema.InternalName, undefined, $scope.lastValue, undefined);
+                        $scope.lastValue = $scope.value;
+                    }
+                    $scope.value = $scope.dropDownValue;
                 };
 
 
@@ -8698,6 +10644,78 @@ angular.module('ngSharePoint').directive('spfieldChoice',
 
                 };
 
+
+                ///////////////////////////////////////////////////////////////////
+                function getResultsFromListQuery(ListQuery) {
+
+                    var def = $q.defer();
+                    var webPromise = $scope.item.list.web;
+
+                    if (ListQuery.Web !== undefined) {
+                        webPromise = SharePoint.getWeb(ListQuery.Web);
+                    }
+
+                    $q.when(webPromise).then(function(web) {
+
+                        web.getList(ListQuery.List).then(function(list) {
+
+                            parseQuery(ListQuery);
+                            list.getListItems(ListQuery.Query).then(function(items) {
+
+                                $scope.items = items;
+                                var choices = [];
+                                $scope.dropDownValue = undefined;
+                                if (!$scope.schema.Required) {
+                                    choices.push(undefined);
+                                }
+                                angular.forEach(items, function(item) {
+                                    choices.push(item[ListQuery.Field || 'Title']);
+                                });
+
+                                $timeout(function() {
+                                    $scope.$apply(function() {
+                                        $scope.dropDownValue = $scope.value;
+                                        $scope.choices = choices;
+                                    });
+                                });
+                            });
+
+                        }, function(err) {
+
+                            def.reject(err);
+                        });
+
+                    });
+
+                    return def.promise;
+                }
+
+
+                function parseQuery(ListQuery) {
+
+                    if ($scope.dependences === void 0) return ListQuery;
+                    if ($scope.dependences.length === 0) return ListQuery;
+
+                    var originalFilter = $scope.schema.Choices.ListQuery.Query.originalFilter;
+                    $scope.schema.Choices.ListQuery.Query.originalFilter = originalFilter;
+
+                    angular.forEach($scope.dependences, function(dependence) {
+
+                        var expression = '{' + dependence.field;
+                        if (dependence.fieldValue !== undefined) {
+                            expression += '.' + dependence.fieldValue + '}';
+                        } else {
+                            expression += '}';
+                        }
+
+                        originalFilter = originalFilter.replace(expression, dependence.value);
+                    });
+
+                    $scope.schema.Choices.ListQuery.Query.$filter = originalFilter;
+                    return ListQuery;
+                }
+
+
             } // link
 
 
@@ -8711,8 +10729,108 @@ angular.module('ngSharePoint').directive('spfieldChoice',
 ]);
 
 /*
+	SPFieldContenttypeid - directive
+	
+	Pau Codina (pau.codina@kaldeera.com)
+	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
+
+	Copyright (c) 2014
+	Licensed under the MIT License
+*/
+
+
+
+///////////////////////////////////////
+//	SPFieldContenttypeid
+///////////////////////////////////////
+
+angular.module('ngSharePoint').directive('spfieldContenttypeid', 
+
+	['SPFieldDirective', '$q', '$http', '$templateCache', '$compile', '$filter', '$location', '$window',
+
+	function spfieldFile_DirectiveFactory(SPFieldDirective, $q, $http, $templateCache, $compile, $filter, $location, $window) {
+
+		var spfieldFile_DirectiveDefinitionObject = {
+
+			restrict: 'EA',
+			require: ['^spform', 'ngModel'],
+			replace: true,
+			scope: {
+				mode: '@'
+			},
+			templateUrl: 'templates/form-templates/spfield-control.html',
+
+
+			link: function($scope, $element, $attrs, controllers) {
+
+				var directive = {
+					
+					fieldTypeName: 'contenttypeid',
+					replaceAll: false,
+
+                    init: function() {
+
+                        $scope.ContentTypes = $filter('filter')($scope.item.list.ContentTypes, function(ct) {
+                        	// Not hidden or folder based content types
+                        	if (ct.Hidden) return false;
+                        	if (ct.StringId.substr(0,6) === '0x0120') return false;
+                        	return true;
+                        });
+                        $scope.selectedContentType = null;
+                    },
+
+                    renderFn: function() {
+
+                    	$scope.value = $scope.modelCtrl.$viewValue;
+                    	$scope.schema.Title = $scope.item.list.Fields.ContentType.Title;
+
+                    	var cts = $filter('filter')($scope.ContentTypes, { StringId: $scope.modelCtrl.$viewValue});
+                    	if (cts.length > 0) {
+                    		$scope.selectedContentType = cts[0];
+                    		$scope.schema.Description = $scope.selectedContentType.Description;
+                    	}
+                    },
+				};
+
+
+				SPFieldDirective.baseLinkFn.apply(directive, arguments);
+
+				$scope.contentTypeChanged = function() {
+
+					if ($scope.value !== $scope.modelCtrl.$viewValue) {
+
+                        /**
+                         * If user changes the ContentType the complete
+                         * form must be refreshed
+                         */
+                        var currentContentType = utils.getQueryStringParameter('ContentTypeId');
+                        if (currentContentType === $scope.value) return;
+
+                        if (currentContentType === undefined) {
+                            $window.location.href = $window.location.href + '&ContentTypeId=' + $scope.value;
+                        } else {
+                            $window.location.href = $window.location.href.replace(currentContentType, $scope.value);
+                        }
+                    }
+
+//					$scope.modelCtrl.$setViewValue($scope.value);
+				};
+
+			} // link
+
+		}; // Directive definition object
+
+
+		return spfieldFile_DirectiveDefinitionObject;
+
+	} // Directive factory
+
+]);
+
+
+/*
     SPFieldControl - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -8726,7 +10844,7 @@ angular.module('ngSharePoint').directive('spfieldChoice',
 //  SPFieldControl
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldControl', 
+angular.module('ngSharePoint').directive('spfieldControl',
 
     ['$compile', '$templateCache', '$http',
 
@@ -8735,16 +10853,18 @@ angular.module('ngSharePoint').directive('spfieldControl',
         var spfieldControl_DirectiveDefinitionObject = {
 
             restrict: 'EA',
-            require: '^spform',
+            require: '?^spform',
             replace: true,
             templateUrl: 'templates/form-templates/spfield-control.html',
 
 
             link: function($scope, $element, $attrs, spformController) {
 
+                if (spformController === null) return;
+
                 var name = ($attrs.name || $attrs.spfieldControl);
                 var schema = spformController.getFieldSchema(name);
-                
+
                 if (schema !== void 0) {
 
                     // Checks if attachments are enabled in the list when process the 'Attachments' field.
@@ -8761,12 +10881,12 @@ angular.module('ngSharePoint').directive('spfieldControl',
                         }
 
                     }
-                    
+
 
                     // Sets the default value for the field
                     spformController.initField(schema.EntityPropertyName).then(function() {
 
-                        // NOTE: Include a <spfield-control name="<name_of_the_field>" mode="hidden" /> to initialize 
+                        // NOTE: Include a <spfield-control name="<name_of_the_field>" mode="hidden" /> to initialize
                         //       the field with it's default value, but without showing it up in the form.
                         if ($attrs.mode == 'hidden') {
                             $element.addClass('ng-hide');
@@ -8815,8 +10935,8 @@ angular.module('ngSharePoint').directive('spfieldControl',
                         if (getFieldMode() == 'edit') {
                             validationAttributes = ' ng-required="' + schema.Required + '"';
                         }
-                        
-                        
+
+
                         // Specific field type validation attributes
                         switch(schema.TypeAsString) {
 
@@ -8828,13 +10948,13 @@ angular.module('ngSharePoint').directive('spfieldControl',
 
 
                         // Check for 'render-as' attribute
+                        if (schema.RenderAs !== undefined) {
+                            fieldType = schema.RenderAs;
+                        }
                         if ($attrs.renderAs) {
                             fieldType = $attrs.renderAs;
                         }
 
-<<<<<<< HEAD
-                    });
-=======
 
                         // Process other attributes
                         var otherAttributes = '';
@@ -8842,13 +10962,12 @@ angular.module('ngSharePoint').directive('spfieldControl',
                         angular.forEach($attrs.$attr, function(attr, normalizedAttr) {
 
                             if (processedAttributes.indexOf(normalizedAttr) == -1) {
-                                
+
                                 otherAttributes += ' ' + attr + '="' + $attrs[normalizedAttr] + '"';
 
                             }
 
                         });
->>>>>>> Pau
 
 
                         // Clean up the validation attributes if the field is in 'display' mode.
@@ -8857,10 +10976,10 @@ angular.module('ngSharePoint').directive('spfieldControl',
                             validationAttributes = '';
 
                         }
-                        
+
 
                         // Mount the field directive HTML
-                        var fieldControlHTML = '<spfield-' + fieldType + ngModelAttr + nameAttr + modeAttr + dependsOnAttr + hiddenAttr + validationAttributes + otherAttributes + '></spfield-' + fieldType + '>';
+                        var fieldControlHTML = '<spfield-' + fieldType + ngModelAttr + nameAttr + modeAttr + dependsOnAttr + hiddenAttr + validationAttributes + otherAttributes + ' class="spfield-body-control ' + fieldType + '"></spfield-' + fieldType + '>';
                         var newElement = $compile(fieldControlHTML)($scope);
 
                         $element.replaceWith(newElement);
@@ -8877,7 +10996,7 @@ angular.module('ngSharePoint').directive('spfieldControl',
                     $element.replaceWith(errorElement);
                     $element = errorElement;
                     */
-                    
+
                     setEmptyElement();
 
                 }
@@ -8910,7 +11029,7 @@ angular.module('ngSharePoint').directive('spfieldControl',
 
 /*
 	SPFieldCurrency - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -8924,7 +11043,7 @@ angular.module('ngSharePoint').directive('spfieldControl',
 //	SPFieldCurrency
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldCurrency', 
+angular.module('ngSharePoint').directive('spfieldCurrency',
 
 	['SPFieldDirective',
 
@@ -8939,13 +11058,13 @@ angular.module('ngSharePoint').directive('spfieldCurrency',
 				mode: '@'
 			},
 			templateUrl: 'templates/form-templates/spfield-control.html',
-			
+
 
 			link: function($scope, $element, $attrs, controllers) {
 
 
 				var directive = {
-					
+
 					fieldTypeName: 'currency',
 					replaceAll: false,
 
@@ -8960,18 +11079,32 @@ angular.module('ngSharePoint').directive('spfieldCurrency',
 
 					},
 
+					formatterFn: function(modelValue) {
+
+                        if (typeof modelValue === 'string') {
+                            modelValue = parseFloat(modelValue);
+							if (isNaN(modelValue)) modelValue = undefined;
+                        }
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
 					parserFn: function(viewValue) {
 
-						// Adjust value to match field type 'Double' in SharePoint.
-						if (viewValue === '' || viewValue === void 0) {
-						
-							viewValue = null;
+						if ($scope.lastValue !== parseFloat(viewValue)) {
+							// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+							$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, parseFloat(viewValue), $scope.lastValue);
+							$scope.lastValue = parseFloat(viewValue);
 						}
-						
-						return viewValue;
-					}
+
+						return parseFloat(viewValue);
+                    }
+
 				};
-				
+
 
 				SPFieldDirective.baseLinkFn.apply(directive, arguments);
 
@@ -8993,7 +11126,7 @@ angular.module('ngSharePoint').directive('spfieldCurrency',
 
 /*
     SPFieldDateTime - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -9007,7 +11140,7 @@ angular.module('ngSharePoint').directive('spfieldCurrency',
 //  SPFieldDateTime
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldDatetime', 
+angular.module('ngSharePoint').directive('spfieldDatetime',
 
     ['SPFieldDirective', '$filter', '$timeout', '$q', 'SPUtils',
 
@@ -9023,30 +11156,23 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                 value: '=ngModel'
             },
             templateUrl: 'templates/form-templates/spfield-control.html',
-            
+
 
             link: function($scope, $element, $attrs, controllers) {
-<<<<<<< HEAD
-=======
 
->>>>>>> Pau
-
-
-<<<<<<< HEAD
                 var directive = {
-                    
+
                     fieldTypeName: 'datetime',
                     replaceAll: false,
-=======
-/*
+
                     parserFn: function(viewValue) {
 
-                        var isDate = angular.isDate($scope.value);
-                        directive.setValidity('date', !isDate || (isDate && isNaN($scope.value)));
+                        // Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+						$scope.lastValue = viewValue;
 
+						return viewValue;
                     },
-*/
->>>>>>> Pau
 
                     renderFn: function() {
 
@@ -9059,6 +11185,9 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                             modelValue = new Date(modelValue);
                         }
 
+                        $scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
                         return modelValue;
                     },
 /*
@@ -9070,17 +11199,11 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                     }
 */
                 };
-<<<<<<< HEAD
-
-=======
 
 
                 SPFieldDirective.baseLinkFn.apply(directive, arguments);
->>>>>>> Pau
 
 
-<<<<<<< HEAD
-=======
                 $scope.modelCtrl.$validators.date = function(modelValue, viewValue) {
 
                     if (viewValue === void 0) return true;
@@ -9092,13 +11215,10 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
 
                     return angular.isDate(viewValue);
                 };
->>>>>>> Pau
 
 
 
 
-<<<<<<< HEAD
-=======
                 function getData() {
 
                     var def = $q.defer();
@@ -9106,7 +11226,6 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                     // Gets web regional settings
                     $scope.formCtrl.getWebRegionalSettings().then(function(webRegionalSettings) {
 
->>>>>>> Pau
                         $scope.webRegionalSettings = webRegionalSettings;
 
                         // Gets addicional properties from the Regional Settings via CSOM.
@@ -9133,7 +11252,7 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                             // La clase Sys.CultureInfo contiene la información de la cultura actual del servidor.
                             // Para recuperar la información de la cultura seleccionada en la configuración regional del usuario
                             // se deben realizar los siguientes pasos:
-                            // 
+                            //
                             // 1. Establecer el valor del atributo EnableScriptGlobalization a true en el tag <asp:ScriptManager ... />:
                             //
                             //    <asp:ScriptManager runat="server" ... EnableScriptGlobalization="true" EnableScriptLocalization="true" ScriptMode="Debug" />
@@ -9168,30 +11287,28 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                             $scope.minutes = minutes;
                             $scope.hours = ($scope.hoursMode24 ? hours24 : hours12);
                             $scope.datePickerPath = getDatePickerPath();
-                            $scope.datePickerUrl = STSHtmlEncode($scope.datePickerPath) + 
-                                                   'iframe.aspx?cal=' + STSHtmlEncode(String($scope.webRegionalSettings.CalendarType)) + 
+                            $scope.datePickerUrl = STSHtmlEncode($scope.datePickerPath) +
+                                                   'iframe.aspx?cal=' + STSHtmlEncode(String($scope.webRegionalSettings.CalendarType)) +
                                                    '&lcid=' + STSHtmlEncode($scope.lcid) +                                  // Locale (User Regional Settings)
                                                    '&langid=' + STSHtmlEncode(_spPageContextInfo.currentLanguage) +         // Language (UI Language)
-                                                   '&tz=' + STSHtmlEncode(TimeZoneDifference) + 
-                                                   '&ww=' + STSHtmlEncode(WorkWeek) + 
-                                                   '&fdow=' + STSHtmlEncode($scope.webRegionalSettings.FirstDayOfWeek) + 
-                                                   '&fwoy=' + STSHtmlEncode($scope.webRegionalSettings.FirstWeekOfYear) + 
+                                                   '&tz=' + STSHtmlEncode(TimeZoneDifference) +
+                                                   '&ww=' + STSHtmlEncode(WorkWeek) +
+                                                   '&fdow=' + STSHtmlEncode($scope.webRegionalSettings.FirstDayOfWeek) +
+                                                   '&fwoy=' + STSHtmlEncode($scope.webRegionalSettings.FirstWeekOfYear) +
                                                    '&hj=' + STSHtmlEncode($scope.webRegionalSettings.AdjustHijriDays) +     // HijriAdjustment ?
                                                    '&swn=' + STSHtmlEncode($scope.webRegionalSettings.ShowWeeks) +          // ShowWeekNumber ?
-                                                   '&minjday=' + STSHtmlEncode(MinJDay) + 
-                                                   '&maxjday=' + STSHtmlEncode(MaxJDay) + 
+                                                   '&minjday=' + STSHtmlEncode(MinJDay) +
+                                                   '&maxjday=' + STSHtmlEncode(MaxJDay) +
                                                    '&date=';
 
                             $scope.DatePickerFrameID = g_strDatePickerFrameID;
                             $scope.DatePickerImageID = g_strDatePickerImageID;
-<<<<<<< HEAD
-=======
 
                             // Initialize the models for data-binding.
                             var value = $scope.modelCtrl.$viewValue;
 
                             if (value !== null && value !== void 0) {
-                                
+
                                 $scope.dateModel = new Date(value);
                                 $scope.dateOnlyModel = $filter('date')($scope.dateModel, $scope.cultureInfo.dateTimeFormat.ShortDatePattern);
                                 $scope.minutesModel = $scope.dateModel.getMinutes().toString();
@@ -9257,84 +11374,6 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                 // Catch when the DatePicker iframe load has finished.
                 //
                 function OnIframeLoadFinish() {
->>>>>>> Pau
-
-                            // Initialize the models for data-binding.
-                            if ($scope.value !== null && $scope.value !== void 0) {
-                                
-                                $scope.dateModel = new Date($scope.value);
-                                $scope.dateOnlyModel = $filter('date')($scope.dateModel, $scope.cultureInfo.dateTimeFormat.ShortDatePattern);
-                                $scope.minutesModel = $scope.dateModel.getMinutes().toString();
-                                var hours = $scope.dateModel.getHours();
-                                $scope.hoursModel = hours.toString() + ($scope.hoursMode24 ? ':' : '');
-                                if (hours < 10) {
-                                    $scope.hoursModel = '0' + $scope.hoursModel;
-                                }
-
-                            } else {
-
-                                $scope.dateModel = $scope.dateOnlyModel = $scope.minutesModel = $scope.hoursModel = null;
-
-                            }
-
-
-                            // All data collected and processed, continue...
-                            def.resolve();
-
-                        });
-
-                    });
-
-
-                    return def.promise;
-
-<<<<<<< HEAD
-                } // getData
-=======
-                // ****************************************************************************
-                // Watch for changes in the model variables to update the field model.
-                //
-                $scope.$watch('[dateOnlyModel, hoursModel, minutesModel]', updateModel, true);
->>>>>>> Pau
-
-
-
-                // ****************************************************************************
-                // Shows the date picker.
-                //
-                // Uses the SharePoint OOB 'clickDatePicker' function to show the calendar
-                // in an IFRAME (<15 DEEP>/TEMPLATE/LAYOUTS/datepicker.js).
-                //
-                $scope.showDatePicker = function($event) {
-
-<<<<<<< HEAD
-                    var fieldId = $scope.idPrefix + '_$DateTimeFieldDate';
-                    var iframe = document.getElementById(fieldId + g_strDatePickerFrameID);
-
-                    if (iframe !== null) {
-                        if (Boolean(iframe.attachEvent)) {
-                            iframe.attachEvent('onreadystatechange', OnIframeLoadFinish);
-                        }
-                        else if (Boolean(iframe.addEventListener)) {
-                            iframe.Picker = iframe;
-                            iframe.readyState = 'complete';
-                            iframe.addEventListener('load', OnIframeLoadFinish, false);
-                        }
-                    }
-
-
-                    clickDatePicker(fieldId, $scope.datePickerUrl, $scope.dateOnlyModel, $event.originalEvent);
-
-                    return false;
-
-                };
-
-
-
-                // ****************************************************************************
-                // Catch when the DatePicker iframe load has finished.
-                //
-                function OnIframeLoadFinish() {
 
                     var picker = this.Picker; // IFRAME element
 
@@ -9344,9 +11383,44 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
 
                         // Wraps the default IFRAME.resultfunc
                         picker.resultfunc = function() {
-=======
+
+                            resultfunc();
+
+                            // Updates the model with the selected value from the DatePicker iframe.
+                            $timeout(function() {
+                                $scope.$apply(function() {
+                                    $scope.dateOnlyModel = picker.resultfield.value;
+                                });
+                            });
+                        };
+
+                    } else {
+
+                        // Can't catch the result value from the DatetimePicker IFRAME...
+                        // :(
+
+                    }
+                }
+
+
+
+                // ****************************************************************************
+                // Watch for changes in the model variables to update the field model.
+                //
+                $scope.$watch('[dateOnlyModel, hoursModel, minutesModel]', updateModel, true);
+
+
+
+                // ****************************************************************************
+                // Updates the field model with the correct value and format.
+                //
+                function updateModel(newValue, oldValue) {
+
+                    if (newValue === oldValue || $scope.dateOnlyModel === void 0 || $scope.dateOnlyModel === null) return;
+
+                    try {
+
                         if ($scope.dateOnlyModel === '') {
->>>>>>> Pau
 
                             $scope.modelCtrl.$setViewValue(null);
                         } else {
@@ -9355,9 +11429,19 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                             var dateValues = $scope.dateOnlyModel.split($scope.cultureInfo.dateTimeFormat.DateSeparator);
                             var dateParts = $scope.cultureInfo.dateTimeFormat.ShortDatePattern.split($scope.cultureInfo.dateTimeFormat.DateSeparator);
                             var dateComponents = {};
-                            
+
                             for(var i = 0; i < dateParts.length; i++) {
                                 dateComponents[dateParts[i]] = dateValues[i];
+                            }
+
+                            if (dateComponents.yyyy !== undefined) {
+                                /**
+                                  * if user enter a short year with only two digits (ex: 12/9/15)
+                                  * we add the two digits of the millennium
+                                  **/
+                                if (dateComponents.yyyy.length == 2) {
+                                    dateComponents.yyyy = new Date().getUTCFullYear().toString().substr(0,2) + dateComponents.yyyy;
+                                }
                             }
 
                             var hours = $scope.hoursModel;
@@ -9366,7 +11450,7 @@ angular.module('ngSharePoint').directive('spfieldDatetime',
                             }
                             var minutes = $scope.minutesModel;
                             var utcDate = Date.UTC(dateComponents.yyyy, (dateComponents.MM || dateComponents.M) - 1, dateComponents.dd || dateComponents.d, hours, minutes);
-                            var offset = new Date().getTimezoneOffset() * 60 * 1000;
+                            var offset = new Date(utcDate).getTimezoneOffset() * 60 * 1000;
 
                             // Into the item must store a valid Date object
                             $scope.modelCtrl.$setViewValue(new Date(utcDate + offset));
@@ -9436,7 +11520,7 @@ angular.module('ngSharePoint').directive('spfieldDescription',
 
 
 			restrict: 'EA',
-			require: '^spform',
+			require: '?^spform',
 			replace: true,
 			scope: {
 				mode: '@'
@@ -9446,9 +11530,9 @@ angular.module('ngSharePoint').directive('spfieldDescription',
 
 			link: function($scope, $element, $attrs, spformController) {
 
+				if (spformController === null) return;
+				
 				$scope.schema = spformController.getFieldSchema($attrs.name);
-
-
 
 				// ****************************************************************************
 				// Watch for form mode changes.
@@ -9677,7 +11761,7 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 		var spfieldLabel_DirectiveDefinitionObject = {
 
 			restrict: 'EA',
-			require: '^spform',
+			require: '?^spform',
 			replace: true,
 			scope: {
 				mode: '@'
@@ -9686,6 +11770,8 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 
 
 			link: function($scope, $element, $attrs, spformController) {
+
+				if (spformController === null) return;
 
 				$scope.schema = spformController.getFieldSchema($attrs.name);
 
@@ -9699,9 +11785,14 @@ angular.module('ngSharePoint').directive('spfieldLabel',
 
 					// Default label
 					// If no 'label' attribute specified assigns the 'Title' property from the field schema as label.
-					// NOTE: If field don't exists, assigns an empty label or code will crash when try to access the schema.
-					//	     As alternative could assign the 'name' attribute as label.
-					$scope.label = ($scope.schema ? $scope.schema.Title : '');
+					$scope.$watch(function() {
+
+						return ($scope.schema ? $scope.schema.Title : '');
+
+					}, function(newValue) {
+
+						$scope.label = newValue;
+					});
 				}
 
 
@@ -9772,7 +11863,7 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 
 					watchModeFn: function(newValue) {
 
-						refreshData();
+//						refreshData();
 					},
 
 					renderFn: function() {
@@ -9842,7 +11933,7 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 				//
 				function getItemById(id) {
 
-					for(var r=0; r <= $scope.lookupItems.length; r++) {
+					for(var r=0; r < $scope.lookupItems.length; r++) {
 						if ($scope.lookupItems[r].Id === id) return $scope.lookupItems[r];
 					}
 
@@ -10111,6 +12202,10 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 								$top: 999999
 							};
 
+							if ($scope.schema.query !== void 0) {
+								angular.extend($query, $scope.schema.query);
+							}
+
 							if ($scope.dependency !== void 0) {
 
 								if ($scope.dependency.value === void 0) {
@@ -10119,12 +12214,35 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 									return def.promise;
 								}
 
+								if ($query.select !== undefined) {
+									$query.$select += ',';
+								} else {
+									$query.$select = '*,';	
+								}
+								$query.$select += $scope.dependency.fieldName + '/Id';
+
+								if ($query.$expand !== undefined) {
+									$query.$expand += ',';
+								} else {
+									$query.$expand = '';
+								}
+								$query.$expand += $scope.dependency.fieldName + '/Id';
+								
+								if ($query.$filter !== undefined) {
+									$query.$filter += ' and';
+								} else {
+									$query.$filter = '';
+								}
+								$query.$filter += $scope.dependency.fieldName + '/Id eq ' + $scope.dependency.value;
+
+								/*
 								$query = {
 									$select: '*, ' + $scope.dependency.fieldName + '/Id',
 									$expand: $scope.dependency.fieldName + '/Id',
 									$filter: $scope.dependency.fieldName + '/Id eq ' + $scope.dependency.value,
 									$orderby: $scope.schema.LookupField
 								};
+								*/
 							}
 
 							list.getListItems($query, true).then(function(items) {
@@ -10199,7 +12317,7 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 
 /*
 	SPFieldLookupMulti - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -10213,7 +12331,7 @@ angular.module('ngSharePoint').directive('spfieldLookup',
 //	SPFieldLookupMulti
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldLookupmulti', 
+angular.module('ngSharePoint').directive('spfieldLookupmulti',
 
 	['SPFieldDirective', '$q', '$filter', 'SharePoint',
 
@@ -10245,13 +12363,12 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 						$scope.candidateAltText = STSHtmlEncode(StBuildParam(Strings.STS.L_LookupMultiFieldCandidateAltText, $scope.schema.Title));
 						$scope.resultAltText = STSHtmlEncode(StBuildParam(Strings.STS.L_LookupMultiFieldResultAltText, $scope.schema.Title));
 
-						
+
 					},
 
-					watchModeFn: function(newValue) {
-
-						refreshData();
-					},
+                    watchModeFn: function(newValue) {
+                    	// to prevent default behavior
+                    },
 
 					renderFn: function() {
 
@@ -10355,7 +12472,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 					if ($scope.value === null || $scope.value === void 0) {
 						$scope.value = { results: [] };
 					}
-					
+
 					// Show loading animation.
 					directive.setElementHTML('<div><img src="/_layouts/15/images/loadingcirclests16.gif" alt="" /></div>');
 
@@ -10451,7 +12568,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 						def.resolve($scope.lookupItems);
 
 					} else {
-						
+
 						getLookupList().then(function(list) {
 
 							list.getListItems($query).then(function(items) {
@@ -10490,7 +12607,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 						getLookupItems().then(function(items) {
 
 							if ($scope.value !== null && $scope.value !== void 0) {
-								
+
 								angular.forEach($scope.value.results, function(selectedItem) {
 
 									var lookupItem = $filter('filter')(items, { Id: selectedItem }, true)[0];
@@ -10541,10 +12658,39 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 
 					var def = $q.defer();
 					var $query = {
-						$orderby: $scope.schema.LookupField
+						$orderby: $scope.schema.LookupField,
+						$top: 999999
 					};
 
+					if ($scope.schema.query !== undefined) {
+						angular.extend($query, $scope.schema.query);
+					}
+
 					if ($scope.dependency !== void 0) {
+
+						if ($query.select !== undefined) {
+							$query.$select += ',';
+						} else {
+							$query.$select = '*,';
+						}
+						$query.$select += $scope.dependency.fieldName + '/Id';
+
+						if ($query.$expand !== undefined) {
+							$query.$expand += ',';
+						} else {
+							$query.$expand = '';
+						}
+						$query.$expand += $scope.dependency.fieldName + '/Id';
+
+						if ($query.$filter !== undefined) {
+							$query.$filter += ' and';
+						} else {
+							$query.$filter = '';
+						}
+						$query.$filter += $scope.dependency.fieldName + '/Id eq ' + $scope.dependency.value;
+
+
+						/*
 						$query = {
 							$select: '*, ' + $scope.dependency.fieldName + '/Id',
 							$expand: $scope.dependency.fieldName + '/Id',
@@ -10552,6 +12698,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 							$orderby: $scope.schema.LookupField,
 							$top: 999999
 						};
+						*/
 					}
 
 					getLookupItems($query).then(function(candidateItems) {
@@ -10576,7 +12723,8 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 							var bindingItem = {
 								id: item.Id,
 								name: displayValue,
-								title: displayValue
+								title: displayValue,
+								item: item
 							};
 
 							if ($scope.value && $scope.value.results && $scope.value.results.indexOf(item.Id) != -1) {
@@ -10595,7 +12743,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 
 					});
 
-					
+
 					return def.promise;
 
 				}
@@ -10609,6 +12757,15 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 					angular.forEach($scope.resultItems, function(item) {
 						results.push(item.id);
 					});
+
+
+					if ($scope.lastValue !== $scope.value) {
+
+						// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, {results: results }, $scope.lastValue, $scope.resultItems);
+
+						$scope.lastValue = $scope.value;
+					}
 
 					$scope.value = {results: results };
 				}
@@ -10683,7 +12840,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 
 /*
     SPFieldMultiChoice - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -10697,7 +12854,7 @@ angular.module('ngSharePoint').directive('spfieldLookupmulti',
 //  SPFieldMultiChoice
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldMultichoice', 
+angular.module('ngSharePoint').directive('spfieldMultichoice',
 
     ['SPFieldDirective',
 
@@ -10718,7 +12875,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
 
 
                 var directive = {
-                    
+
                     fieldTypeName: 'multichoice',
                     replaceAll: false,
 
@@ -10733,7 +12890,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
                     renderFn: function() {
 
                         var value = $scope.modelCtrl.$viewValue;
-                        
+
                         // Adjust the model if no value is provided
                         if (value === null || value === void 0) {
                             value = { results: [] };
@@ -10766,6 +12923,23 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
 
                             return false;
                         };
+                    },
+
+                    formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+						// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+						$scope.lastValue = viewValue;
+
+						return viewValue;
                     }
                 };
 
@@ -10837,7 +13011,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
                     }
 
                     sortChoices();
-                    
+
                 });
 
 
@@ -10855,7 +13029,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
 
                     }
 
-                    
+
                     sortChoices();
 
                 };
@@ -10873,7 +13047,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
 
 /*
     SPFieldNote - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -10887,7 +13061,7 @@ angular.module('ngSharePoint').directive('spfieldMultichoice',
 //  SPFieldNote
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldNote', 
+angular.module('ngSharePoint').directive('spfieldNote',
 
     ['SPFieldDirective', 'SPUtils', '$q', '$timeout',
 
@@ -10908,7 +13082,7 @@ angular.module('ngSharePoint').directive('spfieldNote',
 
 
                 var directive = {
-                    
+
                     fieldTypeName: 'note',
                     replaceAll: false,
 
@@ -10962,6 +13136,23 @@ angular.module('ngSharePoint').directive('spfieldNote',
 
                         }
 
+                    },
+
+                    formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+						// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+						$scope.lastValue = viewValue;
+
+						return viewValue;
                     }
 
                 };
@@ -11057,7 +13248,7 @@ angular.module('ngSharePoint').directive('spfieldNote',
                                 deferred.reject();
 
                             }
-                            
+
                         }
 
                     });
@@ -11081,7 +13272,7 @@ angular.module('ngSharePoint').directive('spfieldNote',
 /*
 	SPFieldNumber - directive
 	SPNumber - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -11095,7 +13286,7 @@ angular.module('ngSharePoint').directive('spfieldNote',
 //	SPFieldNumber
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldNumber', 
+angular.module('ngSharePoint').directive('spfieldNumber',
 
 	['SPFieldDirective', 'SPUtils',
 
@@ -11116,30 +13307,43 @@ angular.module('ngSharePoint').directive('spfieldNumber',
 
 
 				var directive = {
-					
+
 					fieldTypeName: 'number',
 					replaceAll: false,
 
 					init: function() {
 
 						var xml = SPUtils.parseXmlString($scope.schema.SchemaXml);
-						var percentage = xml.documentElement.getAttribute('Percentage') || 'false';
-						var decimals = xml.documentElement.getAttribute('Decimals') || 'auto';
+						var percentage = xml.documentElement.getAttribute('Percentage') || $scope.schema.Percentage || 'false';
+						var decimals = xml.documentElement.getAttribute('Decimals') || $scope.schema.Decimals || 'auto';
 						$scope.schema.Percentage = percentage.toLowerCase() === 'true';
 						$scope.schema.Decimals = parseInt(decimals);
 						$scope.cultureInfo = (typeof __cultureInfo == 'undefined' ? Sys.CultureInfo.CurrentCulture : __cultureInfo);
 					},
 
+					formatterFn: function(modelValue) {
+
+                        if (typeof modelValue === 'string') {
+                            modelValue = parseFloat(modelValue);
+							if (isNaN(modelValue)) modelValue = undefined;
+                        }
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
 					parserFn: function(viewValue) {
-						
-						// Adjust value to match field type 'Double' in SharePoint.
-						if (viewValue === '' || viewValue === void 0) {
-						
-							viewValue = null;
+
+						if ($scope.lastValue !== parseFloat(viewValue)) {
+							// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+							$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, parseFloat(viewValue), $scope.lastValue);
+							$scope.lastValue = parseFloat(viewValue);
 						}
-						
-						return viewValue;
-					}
+
+						return parseFloat(viewValue);
+                    }
 				};
 
 
@@ -11169,7 +13373,7 @@ angular.module('ngSharePoint').directive('spfieldNumber',
 //	SPNumber
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spPercentage', 
+angular.module('ngSharePoint').directive('spPercentage',
 
 	[
 
@@ -11196,8 +13400,9 @@ angular.module('ngSharePoint').directive('spPercentage',
 				ngModel.$parsers.push(function(value) {
 					if ($scope.schema.Percentage && value !== void 0) {
 						// If decimals is set to 'Auto', use 2 decimals for percentage values.
-						var decimals = isNaN($scope.schema.Decimals) ? 2 : $scope.schema.Decimals;
-						return (value / 100).toFixed(decimals);
+						// var decimals = isNaN($scope.schema.Decimals) ? 2 : $scope.schema.Decimals;
+						var percentageNumber = parseFloat(value / 100);
+						return (isNaN(value)) ? value : percentageNumber;
 					} else {
 						return value;
 					}
@@ -11216,7 +13421,7 @@ angular.module('ngSharePoint').directive('spPercentage',
 
 /*
 	SPFieldText - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -11230,7 +13435,7 @@ angular.module('ngSharePoint').directive('spPercentage',
 //	SPFieldText
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldText', 
+angular.module('ngSharePoint').directive('spfieldText',
 
 	['SPFieldDirective',
 
@@ -11251,9 +13456,26 @@ angular.module('ngSharePoint').directive('spfieldText',
 
 
 				var directive = {
-					
+
 					fieldTypeName: 'text',
-					replaceAll: false
+					replaceAll: false,
+
+                    formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+						// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+						$scope.lastValue = viewValue;
+
+						return viewValue;
+                    }
 				};
 
 
@@ -11272,7 +13494,7 @@ angular.module('ngSharePoint').directive('spfieldText',
 
 /*
 	SPFieldUrl - directive
-	
+
 	Pau Codina (pau.codina@kaldeera.com)
 	Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -11286,7 +13508,7 @@ angular.module('ngSharePoint').directive('spfieldText',
 //	SPFieldUrl
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldUrl', 
+angular.module('ngSharePoint').directive('spfieldUrl',
 
 	['SPFieldDirective',
 
@@ -11343,7 +13565,24 @@ angular.module('ngSharePoint').directive('spfieldUrl',
 
                             return false;
                         };
-					}
+					},
+
+                    formatterFn: function(modelValue) {
+
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, modelValue, $scope.lastValue);
+						$scope.lastValue = modelValue;
+
+                        return modelValue;
+                    },
+
+					parserFn: function(viewValue) {
+
+						// Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+						$scope.formCtrl.fieldValueChanged($scope.schema.InternalName, viewValue, $scope.lastValue);
+						$scope.lastValue = viewValue;
+
+						return viewValue;
+                    }
 				};
 
 				SPFieldDirective.baseLinkFn.apply(directive, arguments);
@@ -11351,7 +13590,7 @@ angular.module('ngSharePoint').directive('spfieldUrl',
 				$scope.$watch('[Url,Description]', function(newValue, oldValue) {
 
 					if (newValue === oldValue) return;
-					
+
 					$scope.modelCtrl.$setViewValue({
 						Url: $scope.Url,
 						Description: $scope.Description
@@ -11381,7 +13620,7 @@ angular.module('ngSharePoint').directive('spfieldUrl',
 
 /*
     SPFieldUser - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -11395,7 +13634,7 @@ angular.module('ngSharePoint').directive('spfieldUrl',
 //  SPFieldUser
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spfieldUser', 
+angular.module('ngSharePoint').directive('spfieldUser',
 
     ['SPFieldDirective', '$q', '$timeout', '$filter', 'SharePoint', 'SPUtils', '$compile',
 
@@ -11417,7 +13656,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
 
 
                 var directive = {
-                    
+
                     fieldTypeName: 'user',
                     replaceAll: false,
 
@@ -11426,7 +13665,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
                         $scope.noUserPresenceAlt = STSHtmlEncode(Strings.STS.L_UserFieldNoUserPresenceAlt);
                         $scope.idPrefix = $scope.schema.InternalName + '_'+ $scope.schema.Id;
                     },
-                    
+
                     parserFn: function(viewValue) {
 
                         if ($scope.schema.AllowMultipleValues) {
@@ -11441,7 +13680,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
 
                             // Checks for 'peoplePicker' due to when in 'display' mode it's not created.
                             if ($scope.peoplePicker) {
-                                
+
                                 // Unique validity (Only one value is allowed)
                                 directive.setValidity('unique', $scope.peoplePicker.TotalUserCount <= 1);
                             }
@@ -11476,14 +13715,15 @@ angular.module('ngSharePoint').directive('spfieldUser',
                             $timeout(function() {
                                 initializePeoplePicker(peoplePickerElementId);
 
+                                // Calls the 'fieldValueChanged' method in the SPForm controller to broadcast to all child elements.
+                                $scope.formCtrl.fieldValueChanged($scope.schema.InternalName, $scope.value, undefined, getEntitiesInformation($scope.selectedUserItems));
                             });
                         }
-
                     }
                 };
 
 
-                SPFieldDirective.baseLinkFn.apply(directive, arguments);                
+                SPFieldDirective.baseLinkFn.apply(directive, arguments);
 
 
 
@@ -11612,7 +13852,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
                         def.resolve($scope.userItems);
 
                     } else {
-                        
+
                         getLookupList().then(function(list) {
 
                             list.getListItems().then(function(items) {
@@ -11689,7 +13929,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
 
                         } else {
 
-                            // If no value returns an empty object for corrent binding
+                            // If no value returns an empty object for correct binding
                             var userItem = {
                                 Title: '',
                                 url: '',
@@ -11763,7 +14003,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
                 // Render and initialize the client-side People Picker.
                 //
                 function initializePeoplePicker(peoplePickerElementId) {
-                 
+
                     // Create a schema to store picker properties, and set the properties.
                     var schema = {
                         Id: $scope.schema.Id,
@@ -11814,14 +14054,14 @@ angular.module('ngSharePoint').directive('spfieldUser',
                             Description             Gets or sets text in a text box in the browser.
                             DisplayText             Gets or sets text in the editing control.
                             EntityData              Gets or sets a data-mapping structure that is defined by the consumer of the PickerEntity class.
-                            EntityDataElements  
+                            EntityDataElements
                             EntityGroupName         Group under which this entity is filed in the picker.
                             EntityType              Gets or sets the name of the entity data type.
                             HierarchyIdentifier     Gets or sets the identifier of the current picker entity within the hierarchy provider.
                             IsResolved              Gets or sets a value that indicates whether the entity has been validated.
                             Key                     Gets or sets the identifier of a database record.
-                            MultipleMatches 
-                            ProviderDisplayName 
+                            MultipleMatches
+                            ProviderDisplayName
                             ProviderName
                             */
 
@@ -11855,7 +14095,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
                     this.SPClientPeoplePicker_InitStandaloneControlWrapper(peoplePickerElementId, pickerEntities, schema);
 
 
-                    
+
                     // Get the people picker object from the page.
                     var peoplePicker = this.SPClientPeoplePicker.SPClientPeoplePickerDict[peoplePickerElementId + '_TopSpan'];
 
@@ -11891,9 +14131,9 @@ angular.module('ngSharePoint').directive('spfieldUser',
                                         if (entity.EntityType === 'User') {
 
                                             // Get the user ID
-                                            entityPromise = SPUtils.getUserId(entity.Key).then(function(userId) {
+                                            entityPromise = SPUtils.getUserInfoByLoginName(entity.Key).then(function(userInfo) {
 
-                                                resolvedValues.push(userId);
+                                                resolvedValues.push(userInfo.Id);
                                                 return resolvedValues;
                                             });
 
@@ -11916,7 +14156,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
 
 
                             if (promises.length > 0) {
-                                
+
                                 $q.all(promises).then(function() {
 
                                     updateModel(resolvedValues);
@@ -11958,18 +14198,34 @@ angular.module('ngSharePoint').directive('spfieldUser',
 
                     $scope.modelCtrl.$setViewValue($scope.value);
                 }
-                
 
+
+
+                function getEntitiesInformation(entitiesArray) {
+
+                    var info = [];
+                    angular.forEach(entitiesArray, function(entity) {
+                        if (entity.data !== null) {
+                            info.push(entity.data);
+                        }
+                    });
+
+                    if ($scope.schema.AllowMultipleValues) {
+                        return info;
+                    } else {
+                        return (info.length > 0) ? info[0] : undefined;
+                    }
+                }
 
                 // ****************************************************************************
                 // Query the picker for user information.
                 // NOTE: This function is actually not used.
                 //
                 function getUserInfo(peoplePickerId) {
-                 
+
                     // Get the people picker object from the page.
                     var peoplePicker = this.SPClientPeoplePicker.SPClientPeoplePickerDict[peoplePickerId];
-                 
+
                     // Get information about all users.
                     var users = peoplePicker.GetAllUserInfo();
                     var userInfo = '';
@@ -11981,7 +14237,7 @@ angular.module('ngSharePoint').directive('spfieldUser',
                     }
 
                     console.log(userInfo);
-                    
+
                     // Get user keys.
                     var keys = peoplePicker.GetAllUserKeys();
                     console.log(keys);
@@ -12043,7 +14299,7 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
 
 /*
     SPFieldValue - directive
-    
+
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
     Pau Codina (pau.codina@kaldeera.com)
 
@@ -12059,7 +14315,7 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
 //////////////////////////////////////////////////
 
 (function() {
-    
+
     'use strict';
 
     angular
@@ -12088,7 +14344,7 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
 
         return directive;
 
-        
+
 
         ///////////////////////////////////////////////////////////////////////////////
 
@@ -12107,17 +14363,47 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
             scope.fieldValue = '';
 
 
-            var fieldType = scope.field.TypeAsString;
-            var fieldName = scope.field.InternalName + (fieldType == 'Lookup' || fieldType == 'LookupMulti' || fieldType == 'User' || fieldType == 'UserMulti' ? 'Id' : '');
+            var fieldType = scope.field.TypeAsString || scope.field.Type;
+            var fieldName = scope.field.InternalName || scope.field.Name;
+            fieldName = fieldName + (fieldType == 'Lookup' || fieldType == 'LookupMulti' || fieldType == 'User' || fieldType == 'UserMulti' ? 'Id' : '');
             var fieldValue = scope.item[fieldName] || '';
+
+            if (fieldType === 'Calculated') {
+                switch (scope.field.OutputType) {
+                    case SP.FieldType.dateTime:
+                    case 'DateTime':
+                        fieldType = 'DateTime';
+                        break;
+                    case SP.FieldType.boolean:
+                    case 'Boolean':
+                        fieldType = 'Boolean';
+                        break;
+                    case SP.FieldType.number:
+                    case 'Number':
+                        fieldType = 'Number';
+                        break;
+                    case SP.FieldType.currency:
+                    case 'Currency':
+                        fieldType = 'Number';
+                        break;
+                    default:
+                        fieldType = 'Text';
+                        break;
+                }
+            }
+
+            if (fieldType === 'Number') {
+                fieldValue = parseFloat(fieldValue);
+                if (isNaN(fieldValue)) fieldValue = undefined;
+            }
 
 
             if (fieldValue !== '') {
 
+                var cultureInfo = (typeof __cultureInfo == 'undefined' ? Sys.CultureInfo.CurrentCulture : __cultureInfo);
                 switch(fieldType) {
 
                     case 'DateTime':
-                        var cultureInfo = (typeof __cultureInfo == 'undefined' ? Sys.CultureInfo.CurrentCulture : __cultureInfo);
                         scope.fieldValue = '<span>' + new Date(fieldValue).format(cultureInfo.dateTimeFormat.ShortDatePattern) + '</span>';
                         break;
 
@@ -12177,10 +14463,24 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
 
                         break;
 
+                    case 'Number':
+                        var value = '';
+
+                        if (fieldValue !== undefined) {
+                            value = fieldValue.toFixed(scope.field.Decimals);
+                            if (scope.field.Percentage) {
+                                value = value + cultureInfo.numberFormat.PercentSymbol;
+                            }
+                        }
+
+                        scope.fieldValue = '<span>' + value + '</span>';
+
+                        break;
+
                     default:
                         scope.fieldValue = '<span>' + fieldValue + '</span>';
                 }
-                
+
             }
 
 
@@ -12248,7 +14548,7 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
                                     } else {
 
                                         url = lookupItem.list.Forms.results[0].ServerRelativeUrl + '?ID=' + lookupValue + '&Source=' + encodeURIComponent(window.location);
-                                        
+
                                     }
 
 
@@ -12288,6 +14588,7 @@ angular.module('ngSharePoint').directive('spfieldValidationMessages',
     } // Directive factory function
 
 })();
+
 /*
 	SPFieldWorkflowStatus - directive
 	
@@ -12384,6 +14685,8 @@ angular.module('ngSharePoint').directive('spfield',
 
 			link: function($scope, $element, $attrs, spformController) {
 
+				if (spformController === null) return;
+				
 				var name = ($attrs.name || $attrs.spfield);
 				var schema;
 
@@ -12410,6 +14713,8 @@ angular.module('ngSharePoint').directive('spfield',
 
 					$http.get('templates/form-templates/spfield.html', { cache: $templateCache }).success(function(html) {
 
+						if ($element.parent().length === 0) return;
+						
 						var originalAttrs = $element[0].attributes;
 						var elementAttributes = '';
 						var cssClasses = ['spfield-wrapper'];
@@ -12505,7 +14810,7 @@ angular.module('ngSharePoint').directive('spformRule',
 
 			link: function ($scope, $element, $attrs, ctrl, transcludeFn) {
 
-				if ($element.parent().length > 0) {
+//				if ($element.parent().length > 0) {
 
 					if ($attrs.templateUrl) {
 
@@ -12532,7 +14837,7 @@ angular.module('ngSharePoint').directive('spformRule',
 						$element.remove();
 						$element = null;
 					}
-				}
+//				}
 				
 			} // link
 
@@ -12571,7 +14876,7 @@ angular.module('ngSharePoint').directive('spformToolbar',
 
             restrict: 'EA',
             templateUrl: 'templates/form-templates/spform-toolbar.html',
-            require: '^spform',
+            require: '?^spform',
             replace: true,
             transclude: true,
 
@@ -12598,12 +14903,19 @@ angular.module('ngSharePoint').directive('spformToolbar',
 
                 };
 
+
+                this.allowRedirect = function() {
+                    return $scope.noredirect;
+                };
+
             },
 
 
 
             link: function($scope, $element, $attrs, spformController, transcludeFn) {
 
+                if (spformController === null) return;
+                
                 $scope.formCtrl = spformController;
                 $scope.ribbonToolbar = null;
 
@@ -12616,6 +14928,7 @@ angular.module('ngSharePoint').directive('spformToolbar',
                     //if($scope.currentMode === newValue) return;
 
                     $scope.currentMode = newValue;
+                    $scope.noredirect = ($attrs.noredirect !== void 0);
                     processToolbar();
 
                 });
@@ -12783,7 +15096,7 @@ angular.module('ngSharePoint').directive('spformToolbar',
 
 /*
     SPForm - directive
-    
+
     Pau Codina (pau.codina@kaldeera.com)
     Pedro Castro (pedro.castro@kaldeera.com, pedro.cm@gmail.com)
 
@@ -12797,7 +15110,7 @@ angular.module('ngSharePoint').directive('spformToolbar',
 //  SPForm
 ///////////////////////////////////////
 
-angular.module('ngSharePoint').directive('spform', 
+angular.module('ngSharePoint').directive('spform',
 
     ['SPUtils', '$compile', '$templateCache', '$http', '$q', '$timeout', '$injector', 'SPExpressionResolver', 'SPListItem',
 
@@ -12811,8 +15124,8 @@ angular.module('ngSharePoint').directive('spform',
             scope: {
                 item: '=item',
                 mode: '=mode',
-                extendedSchema: '=',
-                extendedController: '=',
+                extendedSchema: '=?',
+                extendedController: '=?',
             },
             templateUrl: 'templates/form-templates/spform.html',
 
@@ -12828,7 +15141,7 @@ angular.module('ngSharePoint').directive('spform',
                     PROCESSING: 1
                 };
 
-                
+
                 this.getItem = function() {
 
                     return $scope.item;
@@ -12866,12 +15179,18 @@ angular.module('ngSharePoint').directive('spform',
                 this.initField = function(fieldName) {
 
                     var def = $q.defer();
+                    var EXPRESSION_REGEXP = /{(\w+\W*[\w\s./\[\]\(\)]+)}(?!})/g;
 
                     if (this.isNew()) {
 
                         var fieldSchema = this.getFieldSchema(fieldName);
 
                         SPExpressionResolver.resolve(fieldSchema.DefaultValue, $scope).then(function(solvedDefaultValue) {
+
+                            EXPRESSION_REGEXP.lastIndex = 0;
+                            if (solvedDefaultValue !== void 0 && EXPRESSION_REGEXP.test(fieldSchema.DefaultValue)) {
+                                solvedDefaultValue = $scope.$eval(solvedDefaultValue);
+                            }
 
                             // Set field default value.
                             switch(fieldSchema.TypeAsString) {
@@ -12893,12 +15212,14 @@ angular.module('ngSharePoint').directive('spform',
 
                                         case 'undefined':
                                         case undefined:
+                                        case '':
                                         case null:
                                             value = undefined;
                                             break;
 
                                         default:
                                             value = new Date(solvedDefaultValue);
+                                            if (isNaN(value.getTime())) value = undefined;
                                             break;
                                     }
 
@@ -12916,6 +15237,14 @@ angular.module('ngSharePoint').directive('spform',
                                 case 'User':
                                     if (solvedDefaultValue !== null) {
                                         $scope.item[fieldName + 'Id'] = parseInt(solvedDefaultValue);
+                                    }
+                                    break;
+
+                                case 'Number':
+                                case 'Currency':
+                                    var num = parseFloat(solvedDefaultValue);
+                                    if (!isNaN(num)) {
+                                        $scope.item[fieldName] = num;
                                     }
                                     break;
 
@@ -12940,7 +15269,7 @@ angular.module('ngSharePoint').directive('spform',
 
 
                 this.getFieldSchema = function(fieldName) {
-    
+
                     if (utils.isGuid(fieldName)) {
 
                         var fieldSchema = void 0;
@@ -12964,12 +15293,15 @@ angular.module('ngSharePoint').directive('spform',
 
                 this.fieldValueChanged = function(fieldName, newValue, oldValue, params) {
 
-                    // Propagate to child Elements/Fields
-                    $scope.$broadcast(fieldName + '_changed', newValue, oldValue, params);
+                    if ($scope.mode === 'edit') {
+                        // Propagate to child Elements/Fields
+                        $scope.$broadcast(fieldName + '_changed', newValue, oldValue, params);
 
-                    // Propagate to parent Elements/Controllers
-                    $scope.$emit(fieldName + '_changed', newValue, oldValue, params);
-                    
+                        // Propagate to parent Elements/Controllers
+                        if ($scope.$parent !== undefined) {
+                            $scope.$parent.$emit(fieldName + '_changed', newValue, oldValue, params);
+                        }
+                    }
                 };
 
 
@@ -13030,7 +15362,7 @@ angular.module('ngSharePoint').directive('spform',
                     // the first field.
 
                     for (var i = 0; i < this.focusElements.length; i++) {
-                        
+
                         if (fieldName !== void 0) {
 
                             // If argument @fieldName is defined, set the focus in the field specified (if found).
@@ -13057,14 +15389,14 @@ angular.module('ngSharePoint').directive('spform',
                     // If there are not invalid field focused, focus the first field.
                     if (!fieldFocused && this.focusElements.length > 0) {
 
-                        fieldFocused = this.focusElements[0].element;
+                        fieldFocused = this.focusElements[0];
 
                     }
 
                     // Set the focus on the final element if exists.
-                    if (fieldFocused) {
+                    if (fieldFocused !== void 0 && fieldFocused.length > 0) {
 
-                        fieldFocused.focus();
+                        fieldFocused[0].focus();
 
                     }
 
@@ -13212,20 +15544,20 @@ angular.module('ngSharePoint').directive('spform',
 
                                         // Close the 'Working on it...' dialog.
                                         closeDialog();
-                                        
+
                                     }, function() {
 
-                                        // At this point, the 'OnPostSave' promise has been rejected 
+                                        // At this point, the 'OnPostSave' promise has been rejected
                                         // due to an exception or manually by the user.
 
                                         closeDialog();
                                         def.reject();
-                                        
+
                                     });
 
                                 }, function(err) {
 
-                                    // At this point, the 'item.save' promise has been rejected 
+                                    // At this point, the 'item.save' promise has been rejected
                                     // due to an exception.
 
                                     console.error(err);
@@ -13249,17 +15581,17 @@ angular.module('ngSharePoint').directive('spform',
 
                             } else {
 
-                                // At this point, the 'OnPreSave' promise has been canceled 
+                                // At this point, the 'OnPreSave' promise has been canceled
                                 // by the user (By the 'onPreSave' method implemented by the user).
 
                                 closeDialog();
                                 def.reject();
 
                             }
-                            
+
                         }, function() {
 
-                            // At this point, the 'OnPreSave' promise has been rejected 
+                            // At this point, the 'OnPreSave' promise has been rejected
                             // due to an exception or manually by the user.
 
                             closeDialog();
@@ -13316,21 +15648,21 @@ angular.module('ngSharePoint').directive('spform',
 
                     return def.promise;
                 };
- 
- 
- 
+
+
+
                 this.closeForm = function(redirectUrl) {
- 
+
                     if (redirectUrl !== void 0) {
- 
+
                         window.location = redirectUrl;
- 
+
                     } else {
-                         
+
                         window.location = utils.getQueryStringParamByName('Source') || _spPageContextInfo.webServerRelativeUrl;
- 
+
                     }
- 
+
                 };
 
             }], // controller property
@@ -13342,7 +15674,7 @@ angular.module('ngSharePoint').directive('spform',
                 return {
 
                     pre: function prelink($scope, $element, $attrs, spformController, transcludeFn) {
-                    
+
                         // Sets the form 'name' attribute if user don't provide it.
                         // This way has always available the 'ng-form' directive controller for form validations.
                         if (!$attrs.name) {
@@ -13371,6 +15703,13 @@ angular.module('ngSharePoint').directive('spform',
 
                             if (newValue === void 0 || newValue === oldValue) return;
 
+                            if ($scope.childScope !== void 0) {
+
+                                $scope.childScope.$destroy();
+                            }
+                            $scope.childScope = $scope.$new();
+
+
                             loadItemInfrastructure().then(function() {
                                 loadItemTemplate();
                             });
@@ -13384,6 +15723,12 @@ angular.module('ngSharePoint').directive('spform',
 
                             // Checks if the item has a value
                             if (newValue === void 0) return;
+
+                            if ($scope.childScope !== void 0) {
+
+                                $scope.childScope.$destroy();
+                            }
+                            $scope.childScope = $scope.$new();
 
                             // Store a copy of the original item.
                             // See 'onPreSave', 'onPostSave' and 'onCancel' callbacks in the controller's 'save' method.
@@ -13437,10 +15782,10 @@ angular.module('ngSharePoint').directive('spform',
                             }
 
                             // Gets the schema (fields) of the list.
-                            // Really, gets the fields of the list content type specified in the 
+                            // Really, gets the fields of the list content type specified in the
                             // item or, if not specified, the default list content type.
                             $scope.item.list.getProperties({
-                            
+
                                 $expand: 'Fields,ContentTypes,ContentTypes/Fields'
 
                             }).then(function() {
@@ -13519,6 +15864,8 @@ angular.module('ngSharePoint').directive('spform',
 
                         function loadItemTemplate() {
 
+                            // If there is a previous form (other item or other mode), how we can destroy?
+
                             $q.when(SPUtils.callFunctionWithParams($scope.onPreBind, $scope)).then(function(result) {
 
                                 // Search for the 'transclusion-container' attribute in the 'spform' template elements.
@@ -13546,6 +15893,10 @@ angular.module('ngSharePoint').directive('spform',
 
 
                                 transclusionContainer.empty(); // Needed?
+
+                                // Initialize the 'rules' array.
+                                $scope.rules = [];
+                                $scope.expressions = {};
 
 
                                 // Check for 'templateUrl' attribute
@@ -13583,8 +15934,8 @@ angular.module('ngSharePoint').directive('spform',
                                 } else {
 
                                     // Apply transclusion
-                                    transcludeFn($scope, function(clone) {
-                                        
+                                    transcludeFn($scope.childScope, function(clone, newScope) {
+
                                         parseRules(transclusionContainer, clone, true).then(function() {
 
                                             // If no content was detected within the 'spform' element, generates a default form template.
@@ -13633,7 +15984,7 @@ angular.module('ngSharePoint').directive('spform',
 
                         function compile(element) {
 
-                            $q.when($compile(element)($scope)).then(function() {
+                            $q.when($compile(element)($scope.childScope)).then(function() {
 
                                 // Remove the 'loading animation' element if still present.
                                 var loadingAnimation = document.querySelector('#form-loading-animation-wrapper-' + $scope.$id);
@@ -13688,7 +16039,7 @@ angular.module('ngSharePoint').directive('spform',
                                 }
 
                                 if (forceRuleElement !== '') {
-                                    
+
                                     return SPExpressionResolver.resolve(forceRuleElement.outerHTML, $scope).then(function(elemResolved) {
 
                                         targetElement.append(angular.element(elemResolved)[0]);
@@ -13711,10 +16062,6 @@ angular.module('ngSharePoint').directive('spform',
                                 deferred.resolve();
                                 return deferred.promise;
                             }
-
-
-                            // Initialize the 'rules' array for debug purposes.
-                            $scope.rules = $scope.rules || [];
 
 
                             // Check if 'elem' is a <spform-rule> element.
@@ -13772,9 +16119,9 @@ angular.module('ngSharePoint').directive('spform',
 
                                                     // Add the rule to the 'rules' array for debug purposes.
                                                     $scope.rules.push({
-                                                        test: testExpression, 
-                                                        testResolved: testResolved, 
-                                                        terminal: terminalExpression, 
+                                                        test: testExpression,
+                                                        testResolved: testResolved,
+                                                        terminal: terminalExpression,
                                                         terminalResolved: terminalResolved,
                                                         solved: true,
                                                         name: ruleName
@@ -13791,11 +16138,11 @@ angular.module('ngSharePoint').directive('spform',
 
                                             if (isTransclude) {
 
-                                                // NOTE: If this function is called from a transclusion function, removes the 'spform-rule' 
+                                                // NOTE: If this function is called from a transclusion function, removes the 'spform-rule'
                                                 //       elements when the expression in its 'test' attribute evaluates to FALSE.
-                                                //       This is because when the transclusion is performed the elements are inside the 
+                                                //       This is because when the transclusion is performed the elements are inside the
                                                 //       current 'spform' element and should be removed.
-                                                //       When this function is called from an asynchronous template load ('templete-url' attribute), 
+                                                //       When this function is called from an asynchronous template load ('templete-url' attribute),
                                                 //       the elements are not yet in the element.
                                                 elem.remove();
                                                 elem = null;
@@ -13804,9 +16151,9 @@ angular.module('ngSharePoint').directive('spform',
 
                                             // Add the rule to the 'rules' array for debug purposes.
                                             $scope.rules.push({
-                                                test: testExpression, 
+                                                test: testExpression,
                                                 testResolved: testResolved,
-                                                terminal: terminalExpression, 
+                                                terminal: terminalExpression,
                                                 terminalResolved: 'n/a',
                                                 solved: false,
                                                 name: ruleName
@@ -13816,7 +16163,7 @@ angular.module('ngSharePoint').directive('spform',
                                             // Process the next element
                                             parseRules(targetElement, sourceElements, isTransclude, elementIndex, deferred, terminalRuleAdded);
                                         }
-                                        
+
                                     });
 
                                 } else {
@@ -13843,7 +16190,7 @@ angular.module('ngSharePoint').directive('spform',
 
 
 
-                        // Checks if SharePoint is rendering the form in a dialog, and if so 
+                        // Checks if SharePoint is rendering the form in a dialog, and if so
                         // resizes it after de DOM is loaded using the $timeout service.
                         //
                         function dialogResize() {
@@ -13943,33 +16290,33 @@ angular.module('ngSharePoint').directive('spform',
             //       The strings are located at wss.resx that currently can't load dinamically.
 
 
-            scope.isNewItem = scope.item.isNew();
+            if (scope.item !== void 0) {
+    
+                if (!scope.item.isNew()) {
 
+                    // Gets the item info
+                    scope.createdDate = scope.item.Created;
+                    scope.modifiedDate = scope.item.Modified;
+                    scope.authorName = null;
+                    scope.editorName = null;
 
-            if (scope.item && !scope.isNewItem) {
+                    // Gets 'Author' properties
+                    scope.item.list.web.getUserById(scope.item.AuthorId).then(function(author) {
 
-                // Gets the item info
-                scope.createdDate = scope.item.Created;
-                scope.modifiedDate = scope.item.Modified;
-                scope.authorName = null;
-                scope.editorName = null;
+                        scope.authorName = author.Title;
+                        scope.authorLink = _spPageContextInfo.webAbsoluteUrl + '/_layouts/15/userdisp.aspx?ID=' + scope.item.AuthorId;
 
-                // Gets 'Author' properties
-                scope.item.list.web.getUserById(scope.item.AuthorId).then(function(author) {
+                    });
 
-                    scope.authorName = author.Title;
-                    scope.authorLink = _spPageContextInfo.webAbsoluteUrl + '/_layouts/15/userdisp.aspx?ID=' + scope.item.AuthorId;
+                    // Gets 'Editor' properties
+                    scope.item.list.web.getUserById(scope.item.EditorId).then(function(editor) {
 
-                });
+                        scope.editorName = editor.Title;
+                        scope.editorLink = _spPageContextInfo.webAbsoluteUrl + '/_layouts/15/userdisp.aspx?ID=' + scope.item.EditorId;
 
-                // Gets 'Editor' properties
-                scope.item.list.web.getUserById(scope.item.EditorId).then(function(editor) {
+                    });
 
-                    scope.editorName = editor.Title;
-                    scope.editorLink = _spPageContextInfo.webAbsoluteUrl + '/_layouts/15/userdisp.aspx?ID=' + scope.item.EditorId;
-
-                });
-
+                }
             }
 
 
@@ -14185,16 +16532,20 @@ angular.module('ngSharePoint').filter('unsafe',
     }
 ]);
 
-/*
- *  Module: ngSharePointFormPage
- *  Directive: spformpage
- *
- *  Adds 'spform' directive and bootstrap the angular application with the correct SharePoint List/Item page context.
- *
+/**
+ * @ngdoc overview
+ * @name ngSharePointFormPage
+
+ * @description Adds 'spform' directive and bootstrap the angular application with the correct SharePoint List/Item page context.
+ 
+ * @author Pau Codina [<pau.codina@kaldeera.com>]
+ * @author Pedro Castro [<pedro.cm@gmail.com>]
+ * @license Licensed under the MIT License
+ * @copyright Copyright (c) 2014
  */
 
-angular.module('ngSharePointFormPage', ['ngSharePoint', 'oc.lazyLoad']);
 
+angular.module('ngSharePointFormPage', ['ngSharePoint', 'ngSharePoint.templates', 'oc.lazyLoad']);
 
 
 angular.module('ngSharePointFormPage').config(
@@ -14222,9 +16573,9 @@ angular.module('ngSharePointFormPage').config(
 
 angular.module('ngSharePointFormPage').directive('spformpage', 
 
-    ['SharePoint', 'SPUtils', 'SPListItem', '$q', '$http', '$templateCache', '$compile', 'ctx', '$ocLazyLoad', 'SPExpressionResolver', 
+    ['SharePoint', 'SPUtils', 'SPListItem', '$q', '$http', '$templateCache', '$compile', 'ctx', '$ocLazyLoad', '$window', 
 
-    function(SharePoint, SPUtils, SPListItem, $q, $http, $templateCache, $compile, ctx, $ocLazyLoad, SPExpressionResolver) {
+    function(SharePoint, SPUtils, SPListItem, $q, $http, $templateCache, $compile, ctx, $ocLazyLoad, $window) {
         
         return {
 
@@ -14241,6 +16592,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                 var controlMode = 'display';
                 var currentMode = 'display';
                 $scope.mode = 'display';
+
                 /*
                  * SPClientTemplates.ClientControlMode:
                  *
@@ -14251,7 +16603,6 @@ angular.module('ngSharePointFormPage').directive('spformpage',
                  * View: 4
                  *
                  */
-
                 switch(ctx.ControlMode) {
 
                     case SPClientTemplates.ClientControlMode.Invalid:
@@ -14347,6 +16698,7 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                                     }
 
+
                                     // Try to get the template
                                     getTemplateUrl().then(function(templateUrl) {
 
@@ -14391,7 +16743,9 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
 
 
-
+                // This method returns the item to edit. If ClientControlMode is New
+                // returns a new Item object inititalized with the specified ContentTypeId
+                // Otherwise, the method retrieves the item from de server.
                 function getItem(itemId) {
 
                     var deferred = $q.defer();
@@ -14411,6 +16765,9 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
                         $scope.list.getItemById(itemId, 'FieldValuesAsHtml').then(function(item) {
 
+                            var ct = utils.getQueryStringParamByName('ContentTypeId');
+                            if (ct !== undefined) item.ContentTypeId = ct;
+
                             deferred.resolve(item);
 
                         }, function(err) {
@@ -14427,13 +16784,23 @@ angular.module('ngSharePointFormPage').directive('spformpage',
 
 
 
-
+                // This gets the template from the server based on the list, the content type and the
+                // form controlMode.
                 function getTemplateUrl() {
 
                     var deferred = $q.defer();
-                    //var mode = SPClientTemplates.Utility.ControlModeToString(ctx.ControlMode);
+
+                    var templateUrl;
                     var mode = (controlMode == 'new' ? controlMode : $scope.mode);
-                    var templateUrl = $scope.web.url.rtrim('/') + '/ngSharePointFormTemplates/' + $scope.list.Title + '-' + ctx.ListData.Items[0].ContentType + '-' + mode + 'Form.html';
+
+                    if (formDefinition.templates !== void 0) {
+                        templateUrl = formDefinition.templates[mode];
+                    }
+
+                    if (templateUrl === void 0) {
+                        templateUrl = $scope.web.url.rtrim('/') + '/ngSharePointFormTemplates/' + $scope.list.Title + '-' + ctx.ListData.Items[0].ContentType + '-' + mode + 'Form.html';
+                    }
+
 
                     // Check if the 'templateUrl' is valid, i.e. the template exists.
                     $http.get(templateUrl, { cache: $templateCache }).success(function(html) {

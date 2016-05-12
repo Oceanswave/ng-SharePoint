@@ -4,31 +4,32 @@
  * @name ngSharePoint.SPWeb
  *
  * @description
- * Represents a SPWeb object that are used to access to all SharePoint web site properties, lists and users.
+ * Represents an SPWeb object that is used to access to all SharePoint web site properties, lists and users.
  * 
- * When you instantiates a SPWeb object (with any SharePoint site url), the service is configured
+ * When you instantiate an SPWeb object (with any SharePoint site url), the service is configured
  * with a pointer to a REST API of the site `http://<site url>/_api/web`.
  *
- * You don't might to instantiate this object directly. You must use {@link ngSharePoint.SharePoint SharePoint} service
+ * You musn't instantiate this object directly. You must use {@link ngSharePoint.SharePoint SharePoint} service
  * to get SPWeb instances.
  *
- * If you instantiates a new SPWeb object, you have an object that points to the SharePoint web api. Then, you can access to all
- * web properties or get the lists, and users through his methods
+ * If you instantiate a new SPWeb object, you have an object that points to the SharePoint web api. Then, you can access to all
+ * web properties or get lists, and users through its methods.
  *
- * *At this moment, not all SharePoint API methods for web objects are implementeds in ngSharePoint*
+ * *At the moment, not all SharePoint API methods for web objects are implemented in ngSharePoint*
  *
  * @requires ngSharePoint.SPUtils
  * @requires ngSharePoint.SPList
  * @requires ngSharePoint.SPUser
+ * @requires ngSharePoint.SPFolder
  * 
  */
 
 
 angular.module('ngSharePoint').factory('SPWeb', 
 
-	['$q', 'SPUtils', 'SPList', 'SPUser',
+	['$q', 'SPHttp', 'SPUtils', 'SPList', 'SPUser', 'SPGroup', 'SPFolder',
 
-	function SPWeb_Factory($q, SPUtils, SPList, SPUser) {
+	function SPWeb_Factory($q, SPHttp, SPUtils, SPList, SPUser, SPGroup, SPFolder) {
 
 		'use strict';
 
@@ -42,7 +43,7 @@ angular.module('ngSharePoint').factory('SPWeb',
 		 * @description
 		 * Instantiates a new SPWeb object that points to a specific SharePoint site.
 		 * 
-		 * @param {sring=} url|webId url or web id. If this parameter is no provided, the object is initialized with the current web
+		 * @param {sring=} url|webID url or web ID. If this parameter is not provided, the object is initialized with the current web
 		 * @returns {promise} with the SPWeb object correctly instantiated
 		 * 
 		 * @example
@@ -52,7 +53,7 @@ angular.module('ngSharePoint').factory('SPWeb',
 		 * })
 		 * </pre>
 		 *
-		 * All method calls to this `SPWeb` object will refer to a contents of this site (lists, users, ...)
+		 * All method calls to this `SPWeb` object will refer to the content of this site (lists, users, ...)
 		 */
 		var SPWebObj = function(url) {
 
@@ -67,7 +68,6 @@ angular.module('ngSharePoint').factory('SPWeb',
 		/**
 		 * This method is called when a new SPWeb object is instantiated.
 		 * The proupose of this method is to resolve the correct api url of the web, depending on `url` property
-		 *
 		 *
 		 * @returns {promise} that will be resolved after the initialization of the SharePoint web API REST url endpoint
 		 */
@@ -86,7 +86,11 @@ angular.module('ngSharePoint').factory('SPWeb',
 				// If not 'url' parameter provided in the constructor, gets the url of the current web.
 				if (this.url === void 0) {
 
-					this.url = _spPageContextInfo.webServerRelativeUrl;
+					if (window._spPageContextInfo !== undefined) {
+						this.url = window._spPageContextInfo.webServerRelativeUrl;
+					} else {
+						this.url = '/';
+					}
 					this.apiUrl = this.url.rtrim('/') + '/_api/web';
 					def.resolve(this);
 
@@ -126,18 +130,18 @@ angular.module('ngSharePoint').factory('SPWeb',
 		 * @methodOf ngSharePoint.SPWeb
 		 * 
 		 * @description
-		 * Makes a call to the SharePoint server and gets all his properties.
-		 * The current object are extended with all recovered properties. This means that when you has been executed this 
-		 * method, you directly have access to this values. ex: `web.Title`, `web.Language`, etc.
+		 * Makes a call to the SharePoint server and retrieves all web properties.
+		 * The current object is extended with all retrieved properties. This means that when you have executed this 
+		 * method, you will have direct access to these values. ex: `web.Title`, `web.Language`, etc.
 		 * 
 		 * For a complete list of web properties go to Microsoft 
 		 * SharePoint {@link https://msdn.microsoft.com/en-us/library/dn499819.aspx#bk_WebProperties api reference}
 		 *
 		 * SharePoint REST api only returns certain web properties that have primary values. Properties with complex structures
-		 * like `SiteGroups`, `Lists` or `ContentTypes` are not returned directly by the api and you need to extend the query
+		 * like `SiteGroups`, `Lists` or `ContentTypes` are not returned directly by the api and you will need to extend the query
 		 * to retrieve their values. You can accomplish this with the `query` param.
 		 *
-		 * @param {object} query With this parameter you can specify witch web properties you want to extend and to retrieve from server.
+		 * @param {object} query With this parameter you can specify which web properties you want to extend and to retrieve from the server.
 		 * By default `RegionalSettings/TimeZone` properties are extended.
 		 *
 		 * @returns {promise} promise with an object with all web properties
@@ -181,53 +185,29 @@ angular.module('ngSharePoint').factory('SPWeb',
 		SPWebObj.prototype.getProperties = function(query) {
 
 			var self = this;
-			var def = $q.defer();
 			var defaultExpandProperties = 'RegionalSettings/TimeZone';
 
-			SPUtils.SharePointReady().then(function() {
-
-				var executor = new SP.RequestExecutor(self.url);
+			return SPUtils.SharePointReady().then(function() {
 
 				if (query) {
-					query.$expand = defaultExpandProperties + (query.$expand ? ', ' + query.$expand : '');
+					query.$expand = defaultExpandProperties + (query.$expand ? ',' + query.$expand : '');
 				} else {
 					query = { 
 						$expand: defaultExpandProperties
 					};
 				}
 
-				executor.executeAsync({
+				var url = self.apiUrl + utils.parseQuery(query);
 
-					url: self.apiUrl + utils.parseQuery(query),
-					method: 'GET', 
-					headers: { 
-						"Accept": "application/json; odata=verbose"
-					}, 
+				return SPHttp.get(url).then(function(data) {
 
-					success: function(data) {
+					utils.cleanDeferredProperties(data);
+					angular.extend(self, data);
 
-						var d = utils.parseSPResponse(data);
-						utils.cleanDeferredProperties(d);
+					return data;
 						
-						angular.extend(self, d);
-						def.resolve(d);
-						
-					}, 
-
-					error: function(data, errorCode, errorMessage) {
-
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
-
-						def.reject(err);
-					}
 				});
 			});
-
-			return def.promise;
 
 		}; // getProperties
 
@@ -239,10 +219,10 @@ angular.module('ngSharePoint').factory('SPWeb',
 	     * @methodOf ngSharePoint.SPWeb
 	     *
 	     * @description
-	     * Retrieves all SharePoint lists and document libraries from the server and returns one
-	     * array of {@link ngSharePoint.SPList SPList} objects
+	     * Retrieves all SharePoint lists and document libraries from the server and returns an
+	     * array of {@link ngSharePoint.SPList SPList} objects.
 	     *
-	     * @returns {promise} promise with an array of {@link ngSharePoint.SPList SPList} objects  
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPList SPList} objects.
 	     *
 		 * @example
 		 * <pre>
@@ -264,51 +244,24 @@ angular.module('ngSharePoint').factory('SPWeb',
 		SPWebObj.prototype.getLists = function() {
 
 			var self = this;
-			var def = $q.defer();
 
+			return SPUtils.SharePointReady().then(function() {
 
-			SPUtils.SharePointReady().then(function() {
+				var url = self.apiUrl + '/Lists';
+				return SPHttp.get(url).then(function(data) {
 
-				var executor = new SP.RequestExecutor(self.url);
+					var lists = [];
 
-				executor.executeAsync({
+					angular.forEach(data, function(listProperties) {
+						var spList = new SPList(self, listProperties.Id, listProperties);
+						lists.push(spList);
+					});
 
-					url: self.apiUrl + '/Lists',
-					method: 'GET', 
-					headers: { 
-						"Accept": "application/json; odata=verbose"
-					}, 
+					return lists;
 
-					success: function(data) {
-
-						var d = utils.parseSPResponse(data);
-						var lists = [];
-
-						angular.forEach(d, function(listProperties) {
-							var spList = new SPList(self, listProperties.Id, listProperties);
-							lists.push(spList);
-						});
-
-						def.resolve(lists);
-						// def.resolve(utils.parseSPResponse(data));
-					}, 
-
-					error: function(data, errorCode, errorMessage) {
-
-						var err = utils.parseError({
-							data: data,
-							errorCode: errorCode,
-							errorMessage: errorMessage
-						});
-
-						def.reject(err);
-					}
 				});
 
 			});
-
-
-            return def.promise;
 
 		};
 
@@ -323,7 +276,10 @@ angular.module('ngSharePoint').factory('SPWeb',
 	     * Retrieves an instance of the specified SharePoint list or document library from the server
 	     *
 	     * @param {string|GUID} name The name or the GUID of the list
-	     * @returns {promise} promise with a {@link ngSharePoint.SPList SPList} object
+	     *
+         * Also, you can specify "UserInfoList" to refer to the system list with all site users.
+         * 
+	     * @returns {promise} promise with an {@link ngSharePoint.SPList SPList} object
 	     *
 		 * @example
 		 * <pre>
@@ -343,7 +299,9 @@ angular.module('ngSharePoint').factory('SPWeb',
 		 * <pre>
 		 *   
 		 *    web.getList('12fa20d2-1bb8-489c-bea3-b81797ddfeaf').then(function(list) {
-	     *        alert(list.Title);
+	     *        list.getProperties().then(function() {
+		 *		     alert(list.Title);
+		 *		  });
 		 *    });
 		 * </pre>
 		 *
@@ -359,6 +317,42 @@ angular.module('ngSharePoint').factory('SPWeb',
 
 
 		/**
+		 * @ngdoc function
+		 * @name ngSharePoint.SPWeb#getRootFolder
+		 * @methodOf ngSharePoint.SPWeb
+		 *
+		 * @description
+		 * Use this method to get a reference of the web root folder.
+		 *
+		 * @returns {promise} promise with a {@link ngSharePoint.SPFolder SPFolder} object
+		 *
+		*/
+		SPWebObj.prototype.getRootFolder = function() {
+
+            var self = this,
+            	rootFolder = this.RootFolder;
+
+            if (rootFolder === void 0) {
+
+            	var url = self.apiUrl + '/RootFolder';
+
+            	rootFolder = SPHttp.get(url).then(function(data) {
+
+                    self.RootFolder = new SPFolder(self, data.ServerRelativeUrl, data);
+                    self.RootFolder.web = self;
+
+                    return self.RootFolder;
+
+            	});
+            }
+
+            return $q.when(rootFolder);
+
+		};
+
+
+
+		/**
 	     * @ngdoc function
 	     * @name ngSharePoint.SPWeb#getCurrentUser
 	     * @methodOf ngSharePoint.SPWeb
@@ -366,7 +360,7 @@ angular.module('ngSharePoint').factory('SPWeb',
 	     * @description
 	     * Retrieves the current user from SharePoint
 	     *
-	     * @returns {promise} promise with a {@link ngSharePoint.SPUser SPUser} object
+	     * @returns {promise} promise with an {@link ngSharePoint.SPUser SPUser} object
 	     *
 		 * @example
 		 * <pre>
@@ -390,9 +384,32 @@ angular.module('ngSharePoint').factory('SPWeb',
 				def.resolve(this.currentUser);
 
 			} else {
-				this.getUserById(_spPageContextInfo.userId).then(function(user) {
-					self.currentUser = user;
-					def.resolve(user);
+
+				var solveUserId;
+
+				if (window._spPageContextInfo !== undefined) {
+
+					solveUserId = window._spPageContextInfo.userId;
+
+				} else {
+
+					var url = this.apiUrl + '/currentUser';
+
+					solveUserId = SPHttp.get(url).then(function(data) {
+
+						return data.Id;
+					});
+				}
+
+				$q.when(solveUserId).then(function(userId) {
+
+					self.getUserById(userId).then(function(user) {
+						self.currentUser = user;
+						def.resolve(user);
+					}, function(err) {
+						def.reject(err);
+					});
+
 				});
 			}
 
@@ -409,7 +426,7 @@ angular.module('ngSharePoint').factory('SPWeb',
 	     * @description
 	     * Retrieves a specified user from SharePoint
 	     *
-	     * @param {int} userId User id of the desired user to retrieve
+	     * @param {int} userID User ID of the desired user to retrieve
 	     * @returns {promise} promise with a {@link ngSharePoint.SPUser SPUser} object
 	     *
 		 * @example
@@ -424,17 +441,71 @@ angular.module('ngSharePoint').factory('SPWeb',
 		 * });
 		 * </pre>
 		*/
-		SPWebObj.prototype.getUserById = function(userId) {
+		SPWebObj.prototype.getUserById = function(userID) {
 
-			var def = $q.defer();
-
-			new SPUser(this, userId).getProperties().then(function(user) {
-				def.resolve(user);
-			});
-
-			return def.promise;
+			return new SPUser(this, userID).getProperties();
 		};
 
+
+
+		/**
+	     * @ngdoc function
+	     * @name ngSharePoint.SPWeb#getSiteGroups
+	     * @methodOf ngSharePoint.SPWeb
+	     *
+	     * @description
+	     * Retrieves all SharePoint site groups for the current web and returns an
+	     * array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+	     * @returns {promise} promise with an array of {@link ngSharePoint.SPGroup SPGroup} objects.
+	     *
+		 * @example
+		 * <pre>
+		 *
+		 *   SharePoint.getCurrentWeb(function(webObject) {
+		 *
+		 *     var web = webObject;
+		 *     web.getSiteGroups().then(function(groups) {
+		 *       
+		 *        angular.forEach(groups, function(group) {
+	     *           
+	     *           console.log(group.Title + ' ' + group.Description);
+		 *        });
+		 *     });
+		 *
+		 *   });
+		 * </pre>
+		 */
+		SPWebObj.prototype.getSiteGroups = function() {
+
+			var self = this,
+				siteGroups = self.Groups;
+
+			if (siteGroups === void 0) {
+
+				siteGroups = SPUtils.SharePointReady().then(function() {
+
+					var url = self.apiUrl + '/SiteGroups';
+					return SPHttp.get(url).then(function(data) {
+
+						var groups = [];
+
+						angular.forEach(data, function(groupProperties) {
+							var spGroup = new SPGroup(self, groupProperties.Id, groupProperties);
+							groups.push(spGroup);
+						});
+
+						self.Groups = groups;
+						return groups;
+
+					});
+				});
+			}
+
+			return $q.when(siteGroups); 
+
+
+		};
 
 
 
